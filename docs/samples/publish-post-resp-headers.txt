@@ -1,0 +1,11 @@
+strict-transport-security: max-age=31536000 ; includeSubDomains
+cache-control: no-cache, no-store, max-age=0, must-revalidate
+content-encoding: gzip
+pragma: no-cache
+x-content-type-options: nosniff
+expires: 0
+date: Sun, 24 May 2026 12:40:40 GMT
+x-xss-protection: 0
+content-type: application/json;charset=UTF-8
+t_userid: 6837615
+vary: Accept-Encoding

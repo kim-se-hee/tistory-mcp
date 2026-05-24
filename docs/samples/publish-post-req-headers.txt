@@ -1,0 +1,13 @@
+sec-ch-ua-full-version-list: "Chromium";v="148.0.7778.179", "Google Chrome";v="148.0.7778.179", "Not/A)Brand";v="99.0.0.0"
+sec-ch-ua-platform: "Windows"
+referer: https://saree98.tistory.com/manage/newpost/?type=post&returnURL=%2Fmanage%2Fposts%2F
+sec-ch-ua: "Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99"
+sec-ch-ua-bitness: "64"
+sec-ch-ua-model: ""
+sec-ch-ua-mobile: ?0
+sec-ch-ua-wow64: ?0
+sec-ch-ua-arch: "x86"
+user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36
+accept: application/json, text/plain, */*
+content-type: application/json
+sec-ch-ua-platform-version: "10.0.0"
