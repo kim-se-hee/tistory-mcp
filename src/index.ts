@@ -2,22 +2,18 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
+import { registerTools } from "./tools/index.js";
+import { registerResources } from "./resources/index.js";
+import { registerPrompts } from "./prompts/index.js";
+
 const server = new McpServer({
   name: "tistory-mcp",
-  version: "0.0.1",
+  version: "0.1.0",
 });
 
-server.registerTool(
-  "ping",
-  {
-    title: "Ping",
-    description: "Health check — returns 'pong'.",
-    inputSchema: {},
-  },
-  async () => ({
-    content: [{ type: "text", text: "pong" }],
-  }),
-);
+registerTools(server);
+registerResources(server);
+registerPrompts(server);
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
