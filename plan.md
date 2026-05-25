@@ -58,11 +58,11 @@
 | `tistory://substitutions`    | 모든 `[##_*_##]` 와 `<s_*>` 블록 + variable system. 유효 위치 / 반환값. 1차 source = `docs/catalog.md`, 보강 = Odyssey 사용자 스킨 실측 65개 (docs/api.md §6.7) + 이미지 치환자 `[##_Image\|kage@{key}\|CDM\|1.3\|{json}_##]`                                                                                                   |
 | `tistory://page-types`       | `tt-body-*` 매핑. 실측 7종 (`index`/`page`/`category`/`tag`/`search`/`guestbook`/`notice` — docs/api.md §8) + 표준 추정 2종 (`archive`/`location`)                                                                                                                                                                              |
 | `tistory://gotchas`          | 알려진 함정. 4개 카테고리: 스킨 코드 / 스킨 편집 UI / 글쓰기 UI / 글쓰기 API. 아래 표 참조                                                                                                                                                                                                                                      |
-| `tistory://template-default` | 동작 스킨 골격 (`skin.html` / `style.css` / `index.xml` / `preview.gif` / `preview256.jpg` / `preview560.jpg` / `preview1600.jpg`). source = Odyssey 스킨 통째 복사본 (`templates/default/skin.html` + `style.css`) 에서 Odyssey 전용 위젯/커버/CSS 떼어낸 정제본. **현재 미가공 — 원본 그대로 들어있음, 정제는 todo.md 참조** |
+| `tistory://template-default` | 동작 스킨 골격 (`skin.html` / `style.css` / `index.xml` / `preview.gif` / `preview256.jpg` / `preview560.jpg` / `preview1600.jpg`). minimal vanilla baseline — Odyssey 위젯/커버/전용 CSS 제거됨. preview 이미지 4종은 placeholder (catalog.md 권장 dims: 112×84 / 256×192 / 560×420 / 1600×1200). |
 
 #### gotchas 상세
 
-- **스킨 코드** — 빈 `url('')` / `/tag` 404 / `<s_t3>` 스코프 / `body#tt-body-*` 스코프
+- **스킨 코드** — 빈 `url('')` / `/tag` 404 / `<s_t3>` 스코프 / `body#tt-body-*` 스코프 / `GET /manage/design/skin/html.json` 응답의 `html`·`css` 는 JSON-string 이라 그대로 디스크 dump 하면 `"..."` 래핑·`\n` escape 가 박힘 (`apply_skin` 으로 다시 PUT 하면 깨짐). seed 시 반드시 decode
 - **스킨 편집 UI** — `스킨 등록` 버튼 z-index 차단, React 라우터 hashchange 무반응, Monaco 모델 swap (탭별 dispose), 스킨 파일 총 20MB 한도, beforeunload 다이얼로그
 - **글쓰기 UI** — 자동저장 popup ("이어쓰기"), 모드 전환 confirm + 본문 lost, 카테고리 콤보 lazy fetch, 마크다운 원본 복원 불가 (HTML 정규화 저장)
 - **글쓰기 API**
@@ -159,8 +159,8 @@ tistory-mcp/
                           # admin 의 window.Config.blog 는 api.ts 의 fetchBlogConfig 소관 (cookie 필수).
   templates/
     default/              # 동작 스킨 골격. resource source.
-                          # Odyssey 원본 통째 복사 → 잡것 떼고 정제
-                          # 정제 작업은 todo.md 참조. 초기 커밋엔 원본 그대로
+                          # minimal vanilla baseline (Odyssey 위젯/커버/전용 CSS 제거됨)
+                          # skin.html / style.css / index.xml + preview.gif/256/560/1600
 ```
 
 직전 설계 대비 변화:
