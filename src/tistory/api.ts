@@ -155,25 +155,128 @@ export function visibilityFromResponse(v: VisibilityResponse): VisibilityName {
 // 메타 1: window.Config 추출 — docs/api.md §2
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** `window.Config.blog` 의 일부 — 도구가 실제로 쓰는 필드만 타입화. 나머지는 unknown 으로 통과. */
+/**
+ * `window.Config = { ... };` 의 우변 객체 리터럴 문자열을 끝까지 추출.
+ * 문자열·정규식·주석 안의 중괄호는 카운트에서 제외해야 함.
+ * 못 찾으면 null.
+ */
+function extractWindowConfigObject(html: string): string | null {
+  const startMatch = html.match(/window\.Config\s*=\s*\{/);
+  if (!startMatch || startMatch.index === undefined) return null;
+  const start = startMatch.index + startMatch[0].length - 1; // '{' 위치
+  let depth = 0;
+  let i = start;
+  // 모드: code | sq (single quote) | dq (double quote) | tpl (template) | re (regex) | lc (line comment) | bc (block comment)
+  type Mode = "code" | "sq" | "dq" | "tpl" | "re" | "lc" | "bc";
+  let mode: Mode = "code";
+  for (; i < html.length; i++) {
+    const c = html[i];
+    const next = html[i + 1];
+    if (mode === "code") {
+      if (c === "/" && next === "/") {
+        mode = "lc";
+        i++;
+        continue;
+      }
+      if (c === "/" && next === "*") {
+        mode = "bc";
+        i++;
+        continue;
+      }
+      if (c === '"') {
+        mode = "dq";
+        continue;
+      }
+      if (c === "'") {
+        mode = "sq";
+        continue;
+      }
+      if (c === "`") {
+        mode = "tpl";
+        continue;
+      }
+      if (c === "{") depth++;
+      else if (c === "}") {
+        depth--;
+        if (depth === 0) {
+          return html.slice(start, i + 1);
+        }
+      }
+    } else if (mode === "sq") {
+      if (c === "\\") {
+        i++;
+        continue;
+      }
+      if (c === "'") mode = "code";
+    } else if (mode === "dq") {
+      if (c === "\\") {
+        i++;
+        continue;
+      }
+      if (c === '"') mode = "code";
+    } else if (mode === "tpl") {
+      if (c === "\\") {
+        i++;
+        continue;
+      }
+      if (c === "`") mode = "code";
+    } else if (mode === "lc") {
+      if (c === "\n") mode = "code";
+    } else if (mode === "bc") {
+      if (c === "*" && next === "/") {
+        mode = "code";
+        i++;
+      }
+    } else if (mode === "re") {
+      // 사용 안 함 — 객체 리터럴에 정규식 등장 가능하나 보수적으로 무시
+    }
+  }
+  return null;
+}
+
+
+/**
+ * `window.Config.blog` 의 일부 — 도구가 실제로 쓰는 필드만 타입화. 나머지는 unknown 으로 통과.
+ *
+ * 실측 (2026-05, saree98.tistory.com): top-level 에 `blogId`/`user` 는 더 이상 박히지 않음.
+ * `blogId` 는 `blogSettings.blogId` (string) 에서 읽고, 유저 정보는 admin 페이지의 별도 키워드
+ * (`top.tistoryUser` 등) 로 옮겨갔거나 제거됨. 호출부는 `getBlogId(blog)` 헬퍼를 사용할 것.
+ */
 export interface BlogConfig {
-  blogId: number;
-  user: {
-    userId: string;
-    role: string;
-    name: string;
-    loginId?: string;
-  };
+  /** 블로그 도메인 (예: `saree98.tistory.com`) */
+  domain?: string;
+  /** 커스텀 도메인 (없으면 빈 문자열) */
+  customDomain?: string;
+  /** 블로그 제목 */
+  title?: string;
+  /** admin 진입 URL (`/manage`) */
+  manageUrl?: string;
   categories: unknown[];
-  blogSettings: Record<string, unknown>;
+  blogSettings: Record<string, unknown> & { blogId?: string | number };
   activePlugins: string[];
+  /** 22개 전체 플러그인 메타 (`activePlugins` 는 active 만 추린 string[]) */
+  plugins?: unknown[];
   skinInfo: Record<string, unknown>;
   created: string;
+  visibility?: string;
+  visibilityType?: string;
+  useMobileSkin?: string | boolean;
   cclCommercial?: number;
   cclDerive?: number;
-  useMobile?: boolean;
+  useMobile?: string | boolean;
   /** 알려지지 않은 필드는 통과 */
   [key: string]: unknown;
+}
+
+/**
+ * `Config.blog.blogSettings.blogId` 에서 숫자 blogId 추출. 없으면 null.
+ * 응답에선 문자열로 박혀있어 호출부가 매번 parseInt 하지 않도록 헬퍼화.
+ */
+export function getBlogId(blog: BlogConfig): number | null {
+  const raw = blog.blogSettings?.blogId;
+  if (raw === undefined || raw === null) return null;
+  const n = typeof raw === "number" ? raw : Number.parseInt(String(raw), 10);
+  return Number.isFinite(n) ? n : null;
 }
 
 /**
@@ -190,16 +293,28 @@ export async function fetchBlogConfig(
     headers: { accept: "text/html" },
   });
   const html = await res.text();
-  // docs/api.md §2.1 에 있는 정규식. window.Config = {...}; 한 줄에 inline.
-  const m = html.match(/window\.Config\s*=\s*(\{[\s\S]+?\});/);
-  if (!m || !m[1]) {
+  // 실측: 응답은 순수 JSON 이 아니라 JS 객체 리터럴 (unquoted key) 이라 `JSON.parse` 가
+  // line2 col7 에서 깨짐. 또한 객체 안에 `};` 가 박혀있으면 non-greedy 정규식이 중간에서
+  // 잘리므로, `window.Config =` 시작 지점부터 중괄호 밸런스로 객체를 끝까지 추출한 뒤
+  // `Function` 생성자로 평가한다 (응답은 이미 cookie 인증으로 가져온 신뢰 출처).
+  const obj = extractWindowConfigObject(html);
+  if (!obj) {
     throw new TistoryApiError(
       `window.Config not found in ${pathname}`,
       res.status,
       html.slice(0, 200),
     );
   }
-  const config = JSON.parse(m[1]) as { blog: BlogConfig };
+  let config: { blog: BlogConfig };
+  try {
+    config = new Function(`return (${obj});`)() as { blog: BlogConfig };
+  } catch (err) {
+    throw new TistoryApiError(
+      `window.Config parse failed: ${err instanceof Error ? err.message : String(err)}`,
+      res.status,
+      obj.slice(0, 200),
+    );
+  }
   if (!config.blog) {
     throw new TistoryApiError("window.Config.blog missing", res.status);
   }
