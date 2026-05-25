@@ -79,7 +79,7 @@
 - [x] **tool: skin_validate** — catalog 대조 + 블록 중첩 + preview 이미지 누락 + 함정 검사
   - owns: `src/tistory/validator.ts`, `src/tools/skin_validate.ts`
   - depends: catalog.ts
-- [ ] **prompts 정리** — `tistory/new_skin` / `diagnose_render` / `iterate_loop`
+- [x] **prompts 정리** — `tistory/new_skin` / `diagnose_render` / `iterate_loop`
   - owns: `src/prompts/`
 
 ---
