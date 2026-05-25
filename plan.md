@@ -111,8 +111,9 @@
 LLM 받아서
   → tistory_session_init 호출
   → 헤디드 Chromium 뜸 → 사용자 1회 로그인 (카톡 푸시 승인까지)
-  → storageState → ~/.config/tistory-mcp/profiles/<blog-host>/state.json
-    (keytar 로 OS keychain 암호화)
+  → storageState → keytar (OS keychain) 에 JSON 직접 저장
+    service=`tistory-mcp`, account=blog host. 별도 디스크 파일 없음.
+    host 미지정 load 를 위해 `default` 별칭에도 마지막 로그인 미러링.
   → 원래 도구 재시도
 ```
 
