@@ -76,7 +76,7 @@
 - [x] **tool: tistory_fetch_post** — 단일 글 본문 + 블로그 메타 동시 반환 (Notion `notion-fetch` 벤치마크). 공개 페이지 cheerio 파싱 — 쿠키 불필요
   - owns: `src/tools/fetch_post.ts`
   - depends: scraper.ts
-- [ ] **tool: skin_validate** — catalog 대조 + 블록 중첩 + preview 이미지 누락 + 함정 검사
+- [x] **tool: skin_validate** — catalog 대조 + 블록 중첩 + preview 이미지 누락 + 함정 검사
   - owns: `src/tistory/validator.ts`, `src/tools/skin_validate.ts`
   - depends: catalog.ts
 - [ ] **prompts 정리** — `tistory/new_skin` / `diagnose_render` / `iterate_loop`
