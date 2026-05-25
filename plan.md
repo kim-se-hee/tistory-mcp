@@ -76,9 +76,16 @@
 
 ### Prompts
 
-- `tistory/new_skin` — 인터뷰 → template-default 기반 신규 스킨
-- `tistory/diagnose_render` — 시각 이상 진단 체크리스트
-- `tistory/iterate_loop` — fetch_meta → validate → preview → screenshot → apply 사이클. 부분 패치 (특정 블록만 교체) 패턴 포함
+| 이름 | arguments (전부 string, optional) | 권장 사용 시점 |
+| --- | --- | --- |
+| `tistory/new_skin` | `blogPurpose?` `style?` `colorPalette?` | 빈 종이에서 신규 스킨 작성 시작. template-default 골격 → 변수 분리 → skin_validate → preview/screenshot → apply 흐름 안내 |
+| `tistory/diagnose_render` | `screenshotUrl?` `expectedBehavior?` | "왜 이상해 보이지?" 류 트러블슈팅. 페이지 식별 → skin-code 함정 → 본문/이미지 → 변수 → preview vs live → 검증 도구 순 |
+| `tistory/iterate_loop` | `targetPage?` `changeScope?` | 한 사이클(1분 이내) 점진 개선. fetch_meta → skin_validate → preview_skin → screenshot → apply_skin. 부분 패치 패턴 (작게 끊어 여러 바퀴) 강조 |
+
+구현 메모:
+- MCP 스펙상 prompt argument 는 string 전용 — 모두 `z.string().optional()` raw shape.
+- 핸들러는 인자를 받아 단일 `user` 텍스트 메시지를 조립. 인자가 비면 사용자에게 되묻도록 안내 라인 박음.
+- `src/prompts/index.ts` 의 `registerPrompts(server)` 한 줄로 3종 일괄 등록 (resources 패턴과 동일).
 
 > Prompts 는 워크플로우 *추천*만. 강제 아님. 도구는 LLM 이 자유 조합.
 
