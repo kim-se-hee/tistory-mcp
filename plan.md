@@ -154,7 +154,9 @@ tistory-mcp/
       browser.ts          # Playwright 세션 매니저 — session_init 전용 (카카오 OAuth 1회)
       api.ts              # cookie-auth fetch 래퍼. 11개 endpoint (스킨5 + 글5 + 메타1).
                           # 자동저장은 내부 보조 (외부에 도구로 안 노출)
-      scraper.ts          # window.Config.blog + 공개 페이지 cheerio 파서
+      scraper.ts          # 공개 페이지 cheerio 파서 (cookie 불필요).
+                          # 단일 글 본문 (§4.4 우회 1번) + og 메타 + window.T.config.BLOG.
+                          # admin 의 window.Config.blog 는 api.ts 의 fetchBlogConfig 소관 (cookie 필수).
   templates/
     default/              # 동작 스킨 골격. resource source.
                           # Odyssey 원본 통째 복사 → 잡것 떼고 정제
