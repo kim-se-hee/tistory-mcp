@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<skin>
+    <information>
+        <name>tistory-mcp magazine</name>
+        <version>0.1.0</version>
+        <description>가로 카드형 매거진 레이아웃. 글 목록은 썸네일 + 카테고리/날짜 + 제목 + 요약 카드로, 글 단독 페이지는 가독성 중심 단일 컬럼.</description>
+        <license>MIT</license>
+    </information>
+    <author>
+        <name>tistory-mcp</name>
+        <homepage>https://github.com/kim-se-hee/tistory-mcp</homepage>
+    </author>
+    <default>
+        <recentEntries>10</recentEntries>
+        <recentComments>5</recentComments>
+        <recentTrackbacks>0</recentTrackbacks>
+        <tagsInCloud>30</tagsInCloud>
+        <sortInCloud>name</sortInCloud>
+        <lengthOfRecentNotice>40</lengthOfRecentNotice>
+        <lengthOfRecentEntry>40</lengthOfRecentEntry>
+        <lengthOfRecentComment>40</lengthOfRecentComment>
+        <lengthOfRecentTrackback>40</lengthOfRecentTrackback>
+        <lengthOfLink>40</lengthOfLink>
+        <expandableCategory>true</expandableCategory>
+        <categoryItemStyle>NUMBER</categoryItemStyle>
+        <contentWidth>980</contentWidth>
+    </default>
+    <variables/>
+    <covers/>
+</skin>
