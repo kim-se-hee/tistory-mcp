@@ -67,9 +67,15 @@
 
 ## Phase 2 — 미리보기 / 검증 보강
 
-- [x] **tool: tistory_preview_skin** — `POST /preview/skin/{page}` 서버 렌더
-- [ ] **tool: tistory_screenshot** — Playwright 캡처 (MCP image response)
-- [ ] **tool: tistory_fetch_post** — 단일 글 본문 + 블로그 메타
+- [x] **tool: tistory_preview_skin** — `POST /preview/skin/{page}` 서버 렌더. body 5필드 중 `isDirty` 는 내부 처리, 라이브 html/css 사용 (body 에 못 보냄). 응답은 풀 HTML 문서
+  - owns: `src/tools/preview_skin.ts`
+  - depends: api.ts
+- [ ] **tool: tistory_screenshot** — Playwright 캡처 (MCP image response). `url` + `viewport?` 입력. browser.ts 의 storageState 재사용 (로그인 필요 페이지 대응)
+  - owns: `src/tools/screenshot.ts`
+  - depends: browser.ts
+- [x] **tool: tistory_fetch_post** — 단일 글 본문 + 블로그 메타 동시 반환 (Notion `notion-fetch` 벤치마크). 공개 페이지 cheerio 파싱 — 쿠키 불필요
+  - owns: `src/tools/fetch_post.ts`
+  - depends: scraper.ts
 - [ ] **tool: skin_validate** — catalog 대조 + 블록 중첩 + preview 이미지 누락 + 함정 검사
   - owns: `src/tistory/validator.ts`, `src/tools/skin_validate.ts`
   - depends: catalog.ts
