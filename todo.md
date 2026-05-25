@@ -38,7 +38,7 @@
 - [x] **tool: tistory_session_init**
   - owns: `src/tools/session_init.ts`
   - depends: browser.ts
-- [ ] **tool: tistory_publish_post / update_post / delete_post**
+- [x] **tool: tistory_publish_post / update_post / delete_post**
   - owns: `src/tools/publish_post.ts`, `src/tools/update_post.ts`, `src/tools/delete_post.ts`
   - depends: api.ts
 - [ ] **tool: tistory_upload_image**
