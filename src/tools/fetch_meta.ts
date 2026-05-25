@@ -27,6 +27,7 @@ import { z } from "zod";
 
 import {
   fetchBlogConfig,
+  getBlogId,
   SessionExpiredError,
   TistoryApiError,
   type BlogConfig,
@@ -71,8 +72,9 @@ type Input = {
  */
 interface AdminMetaSummary {
   source: "admin";
-  blogId: number;
-  user: BlogConfig["user"];
+  blogId: number | null;
+  domain?: string;
+  title?: string;
   created: string;
   categories: Array<{
     id: string | number;
@@ -92,7 +94,8 @@ interface AdminMetaSummary {
   blogSettings: Record<string, unknown>;
   cclCommercial?: number;
   cclDerive?: number;
-  useMobile?: boolean;
+  /** 실측: 응답이 string `"1"` 또는 boolean — 정규화 없이 통과 */
+  useMobile?: string | boolean;
 }
 
 interface PublicMetaSummary {
@@ -158,8 +161,9 @@ function summarizeAdmin(blog: BlogConfig): AdminMetaSummary {
 
   return {
     source: "admin",
-    blogId: blog.blogId,
-    user: blog.user,
+    blogId: getBlogId(blog),
+    ...(blog.domain !== undefined ? { domain: blog.domain } : {}),
+    ...(blog.title !== undefined ? { title: blog.title } : {}),
     created: blog.created,
     categories: flattenCategories(blog.categories),
     activePlugins: blog.activePlugins,
