@@ -109,6 +109,8 @@
 
 ★ **Playwright 가 필요한 곳은 `tistory_session_init` 과 `tistory_screenshot` 두 곳뿐**. session_init 은 카카오 OAuth + 2FA 때문에 (한 번), screenshot 은 픽셀 렌더가 본질 (호출마다). 한 번 로그인 → cookie 추출 → 이후 모든 *데이터* 도구는 `fetch + cookie` (스킨/글/이미지/메타). 브라우저 재기동 금지.
 
+Chromium 바이너리는 `npx -y tistory-mcp` 가 자동으로 받아주지 않는다 (Playwright postinstall 은 `npm install` 시점만 동작, `npx` 실행에는 안 끼어듦). 사용자가 한 번 `npx playwright install chromium` 을 별도로 실행해야 한다 — README 첫 섹션에 박혀있다.
+
 흐름:
 
 ```
