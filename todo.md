@@ -41,7 +41,7 @@
 - [x] **tool: tistory_publish_post / update_post / delete_post**
   - owns: `src/tools/publish_post.ts`, `src/tools/update_post.ts`, `src/tools/delete_post.ts`
   - depends: api.ts
-- [ ] **tool: tistory_upload_image**
+- [x] **tool: tistory_upload_image**
   - owns: `src/tools/upload_image.ts`
   - depends: api.ts
 - [ ] **tool: tistory_apply_skin / apply_skin_settings**
