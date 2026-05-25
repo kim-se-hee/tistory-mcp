@@ -171,10 +171,22 @@ tistory-mcp/
                           # 단일 글 본문 (§4.4 우회 1번) + og 메타 + window.T.config.BLOG.
                           # admin 의 window.Config.blog 는 api.ts 의 fetchBlogConfig 소관 (cookie 필수).
   templates/
-    default/              # 동작 스킨 골격. resource source.
+    default/              # 동작 스킨 골격. `tistory://template-default` resource source.
                           # minimal vanilla baseline (Odyssey 위젯/커버/전용 CSS 제거됨)
                           # skin.html / style.css / index.xml + preview.gif/256/560/1600
+    magazine/             # 가로 카드형 매거진 (썸네일 + 카테고리/날짜 + 제목 + 요약)
+                          # contentWidth 980. card-list grid + 모바일 세로 스택.
+                          # `<s_list_rep_thumbnail>` 조건부로 썸네일 유무 대응.
+    gallery/              # 썸네일 그리드 위주 (정사각 auto-fill 타일 + hover 오버레이)
+                          # contentWidth 1280. recentEntries 20 (그리드 채움 용).
+                          # 모바일 (≤480px) 에서는 hover 없으니 메타 상시 노출.
 ```
+
+추가 template 정책:
+
+- 모든 template 은 default 와 동일한 7-파일 세트 (`skin.html`/`style.css`/`index.xml` + preview 4종) + 동일 page-type 블록 셋 (`s_list`/`s_article_rep`/`s_article_protected`/`s_notice_rep`/`s_page_rep`/`s_tag`/`s_guest`/`s_paging`/`s_sidebar`) 을 모두 포함한다 — 한 페이지 타입이라도 빠지면 해당 페이지 빈 화면.
+- 차이는 **list 블록 마크업** 과 **CSS** 에만 둔다. permalink/page/notice/protected/tag/guest/paging/sidebar 는 default 와 의도적으로 동일하게 유지 (가독성 일관).
+- preview 이미지 4종은 default placeholder 를 그대로 복사 (실 시각물은 후속). placeholder 라도 4종 모두 있어야 admin 업로드 시 `index.xml` 파싱이 안 깨진다.
 
 직전 설계 대비 변화:
 
