@@ -13,17 +13,18 @@
 
 ## 문서 지도 — source of truth
 
-CLAUDE.md 는 얇은 인덱스. 실제 정보는 아래 4개가 정답:
+CLAUDE.md 는 얇은 인덱스. 실제 정보는 아래가 정답:
 
 | 파일 | 내용 |
 |---|---|
-| `plan.md` | 도구 13개 정의 / Phase / 의사결정 기록 / 리스크. **무엇을 만들지** 의 정답 |
+| `plan.md` | 도구 13개 정의 / 핵심 결정 / 아키텍처. **무엇을 만들지** 의 정답 (설계, 잘 안 바뀜) |
+| `todo.md` | Phase 별 작업 큐. **지금 뭐 할 차례인지** 의 정답 (체크박스 + owns/depends 메타) |
 | `docs/api.md` | 티스토리 관리자 endpoint 11개 실측 (body 스키마·응답·함정). **어떻게 호출할지** 의 정답 |
 | `docs/catalog.md` | 스킨 치환자 1차 카탈로그 (`tistory://substitutions` 리소스 source) |
 | `docs/samples/` | 실측 req/resp 본문 (`apply-skin-put-body.json`, `publish-post-body.json`, `upload-image-response.json` 등). 도구 구현 시 fixture |
 | `templates/default/` | Odyssey 스킨 원본 통째 복사본 — 미정제 (raw) |
 
-새 endpoint 발견·실측 변경 → `docs/api.md`. 도구 추가/축소·의사결정 변경 → `plan.md` 부록 A 에 시간순 append.
+새 endpoint 발견·실측 변경 → `docs/api.md`. 도구 추가/축소·설계 결정 변경 → `plan.md`. 작업 진행·완료·신규 task → `todo.md`.
 
 ## 아키텍처 (계획)
 
@@ -58,7 +59,7 @@ src/
 - TypeScript strict + `noUncheckedIndexedAccess` + `noImplicitOverride` (`tsconfig.json` 그대로)
 - ESM (`"type": "module"`). NodeNext 라 상대 import 는 `.js` 확장자 필수 (예: `import { x } from "./api.js"`)
 - 도구 입력은 `zod` 스키마로 정의 → MCP SDK 가 JSON Schema 변환. v4 (`zod@^4`) 사용
-- 한국어 주석·문서 OK. 기존 `plan.md` / `docs/*.md` 의 한·영 혼합 스타일 유지
+- 한국어 주석·문서 OK. 기존 `plan.md` / `todo.md` / `docs/*.md` 의 한·영 혼합 스타일 유지
 - 새 의존성 추가 전 한 번 의심. 핵심 SDK 외엔 작게 유지
 
 ## Git 컨벤션

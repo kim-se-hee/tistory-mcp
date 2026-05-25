@@ -1,11 +1,11 @@
-# Tistory MCP — 설계 및 로드맵
+# Tistory MCP — 설계
 
 블로그 주인이 LLM 한테 "글 올려" / "스킨 이거 적용해" 라고 말하면 끝나도록 만드는 MCP 서버. 지난 세션에서 직접 써보면서 반복됐던 6가지 마찰을 MCP 도구로 환원하는 게 목표.
 
-부속 문서:
+작업 큐는 [`todo.md`](todo.md). 부속 문서:
 
 - [`docs/api.md`](docs/api.md) — 관리자 페이지 endpoint / selector 실측
-- [`docs/catalog.md`](docs/catalog.md) — 공식 docs 22 페이지 스크레이프 (1차 치환자 카탈로그, `src/tistory/catalog.ts` 로 흡수 예정)
+- [`docs/catalog.md`](docs/catalog.md) — 공식 docs 22 페이지 스크레이프 (1차 치환자 카탈로그, `src/tistory/catalog.ts` 로 흡수)
 - [`docs/samples/`](docs/samples/) — 실측 req/resp 본문 (`apply-skin-put-body.json`, `publish-post-body.json` 등). 도구 구현 시 fixture
 
 ---
@@ -35,23 +35,21 @@
 
 ### Tools (13개)
 
-P = Phase.
-
-| 이름                          | P   | 입력                                                                                                                                                   | 동작                                                                                                                                                                                 |
-| ----------------------------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `tistory_session_init`        | 1   | `blogUrl`                                                                                                                                              | 헤디드 Chromium → 카카오 로그인 + 2FA. `storageState` 디스크 저장. 만료 시 다른 도구가 트리거                                                                                        |
-| `tistory_publish_post`        | 1   | `content` (md or html), `title`, `category?`, `tags?`, `visibility?` (`public`/`private`/`protected`), `slogan?`, `password?`, `type?` (`post`/`page`) | `POST /manage/post.json` fetch 1방. 응답 `entryUrl` 에서 postId 추출 반환                                                                                                            |
-| `tistory_update_post`         | 1   | `postId` (or `postUrl`), `content?`, `title?`, `category?`, `tags?`, `visibility?`                                                                     | `PUT /manage/post/{id}.json` fetch. 현재 메타 fetch → 머지 → PUT (부분 patch)                                                                                                        |
-| `tistory_delete_post`         | 1   | `postId` (or `postUrl`)                                                                                                                                | `DELETE /manage/post/{id}.json` fetch 1방                                                                                                                                            |
-| `tistory_upload_image`        | 1   | `filePath`, `filename?`, `mime?`                                                                                                                       | `POST /manage/post/attach.json` multipart (field `file`). 응답 `{ url, key, name, size }`. 본문 박을 영구 형식 = `[##_Image\|kage@{key}\|CDM\|1.3\|{json}_##]` 치환자 (catalog 참조) |
-| `tistory_apply_skin`          | 1   | `{html, css}` or `skinDir`, `isPreview?`                                                                                                               | `POST /manage/design/skin/html.json` fetch 1방                                                                                                                                       |
-| `tistory_apply_skin_settings` | 1   | `{variableSettings?, skinSettings?, homeType?, coverSettings?}`                                                                                        | `GET current.json` → 머지 → `POST settings.json` (body 4필드 full snapshot, `isDirty` 없음). 변수·기본설정·홈타입·커버 부분 패치. 2026-05-25 실측 확정 (docs/api.md §6.1)            |
-| `tistory_fetch_meta`          | 1   | `blogUrl?`                                                                                                                                             | admin GET → `window.Config.blog` 파싱. 카테고리/태그/플러그인/현재스킨 한 방                                                                                                         |
-| `tistory_preview_skin`        | 2   | `page` (`index`\|`entry`\|`category`\|`tag`\|`guestbook`), `variableSettings?`, `skinSettings?`, `homeType?`, `coverSettings?`                         | `POST /preview/skin/{page}` 서버 렌더. body 5필드 중 `isDirty` 는 내부 처리. 항상 라이브 html/css 사용 (body 에 못 보냄). 응답 = 풀 HTML 문서                                        |
-| `tistory_screenshot`          | 2   | `url`, `viewport?`                                                                                                                                     | Playwright 캡처 (MCP image response)                                                                                                                                                 |
-| `tistory_fetch_post`          | 2   | `postUrl`                                                                                                                                              | 단일 글 본문 + 블로그 메타 동시 반환 (Notion `notion-fetch` 벤치마크)                                                                                                                |
-| `skin_validate`               | 2   | `{html, css}` or `path`                                                                                                                                | 치환자 catalog 대조 + 블록 중첩 + preview 이미지 4종 누락 + 함정 검사                                                                                                                |
-| `tistory_search_posts`        | 3   | `query`                                                                                                                                                | 글 검색                                                                                                                                                                              |
+| 이름                          | 입력                                                                                                                                                   | 동작                                                                                                                                                                                 |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tistory_session_init`        | `blogUrl`                                                                                                                                              | 헤디드 Chromium → 카카오 로그인 + 2FA. `storageState` 디스크 저장. 만료 시 다른 도구가 트리거                                                                                        |
+| `tistory_publish_post`        | `content` (md or html), `title`, `category?`, `tags?`, `visibility?` (`public`/`private`/`protected`), `slogan?`, `password?`, `type?` (`post`/`page`) | `POST /manage/post.json` fetch 1방. 응답 `entryUrl` 에서 postId 추출 반환                                                                                                            |
+| `tistory_update_post`         | `postId` (or `postUrl`), `content?`, `title?`, `category?`, `tags?`, `visibility?`                                                                     | `PUT /manage/post/{id}.json` fetch. 현재 메타 fetch → 머지 → PUT (부분 patch)                                                                                                        |
+| `tistory_delete_post`         | `postId` (or `postUrl`)                                                                                                                                | `DELETE /manage/post/{id}.json` fetch 1방                                                                                                                                            |
+| `tistory_upload_image`        | `filePath`, `filename?`, `mime?`                                                                                                                       | `POST /manage/post/attach.json` multipart (field `file`). 응답 `{ url, key, name, size }`. 본문 박을 영구 형식 = `[##_Image\|kage@{key}\|CDM\|1.3\|{json}_##]` 치환자 (catalog 참조) |
+| `tistory_apply_skin`          | `{html, css}` or `skinDir`, `isPreview?`                                                                                                               | `POST /manage/design/skin/html.json` fetch 1방                                                                                                                                       |
+| `tistory_apply_skin_settings` | `{variableSettings?, skinSettings?, homeType?, coverSettings?}`                                                                                        | `GET current.json` → 머지 → `POST settings.json` (body 4필드 full snapshot, `isDirty` 없음). 변수·기본설정·홈타입·커버 부분 패치. 2026-05-25 실측 확정 (docs/api.md §6.1)            |
+| `tistory_fetch_meta`          | `blogUrl?`                                                                                                                                             | admin GET → `window.Config.blog` 파싱. 카테고리/태그/플러그인/현재스킨 한 방                                                                                                         |
+| `tistory_preview_skin`        | `page` (`index`\|`entry`\|`category`\|`tag`\|`guestbook`), `variableSettings?`, `skinSettings?`, `homeType?`, `coverSettings?`                         | `POST /preview/skin/{page}` 서버 렌더. body 5필드 중 `isDirty` 는 내부 처리. 항상 라이브 html/css 사용 (body 에 못 보냄). 응답 = 풀 HTML 문서                                        |
+| `tistory_screenshot`          | `url`, `viewport?`                                                                                                                                     | Playwright 캡처 (MCP image response)                                                                                                                                                 |
+| `tistory_fetch_post`          | `postUrl`                                                                                                                                              | 단일 글 본문 + 블로그 메타 동시 반환 (Notion `notion-fetch` 벤치마크)                                                                                                                |
+| `skin_validate`               | `{html, css}` or `path`                                                                                                                                | 치환자 catalog 대조 + 블록 중첩 + preview 이미지 4종 누락 + 함정 검사                                                                                                                |
+| `tistory_search_posts`        | `query`                                                                                                                                                | 글 검색                                                                                                                                                                              |
 
 ### Resources (LLM 이 읽는 카탈로그)
 
@@ -60,7 +58,7 @@ P = Phase.
 | `tistory://substitutions`    | 모든 `[##_*_##]` 와 `<s_*>` 블록 + variable system. 유효 위치 / 반환값. 1차 source = `docs/catalog.md`, 보강 = Odyssey 사용자 스킨 실측 65개 (docs/api.md §6.7) + 이미지 치환자 `[##_Image\|kage@{key}\|CDM\|1.3\|{json}_##]`                                                                                                   |
 | `tistory://page-types`       | `tt-body-*` 매핑. 실측 7종 (`index`/`page`/`category`/`tag`/`search`/`guestbook`/`notice` — docs/api.md §8) + 표준 추정 2종 (`archive`/`location`)                                                                                                                                                                              |
 | `tistory://gotchas`          | 알려진 함정. 4개 카테고리: 스킨 코드 / 스킨 편집 UI / 글쓰기 UI / 글쓰기 API. 아래 표 참조                                                                                                                                                                                                                                      |
-| `tistory://template-default` | 동작 스킨 골격 (`skin.html` / `style.css` / `index.xml` / `preview.gif` / `preview256.jpg` / `preview560.jpg` / `preview1600.jpg`). source = Odyssey 스킨 통째 복사본 (`templates/default/skin.html` + `style.css`) 에서 Odyssey 전용 위젯/커버/CSS 떼어낸 정제본. **현재 미가공 — 원본 그대로 들어있음, Phase 1 구현 중 정제** |
+| `tistory://template-default` | 동작 스킨 골격 (`skin.html` / `style.css` / `index.xml` / `preview.gif` / `preview256.jpg` / `preview560.jpg` / `preview1600.jpg`). source = Odyssey 스킨 통째 복사본 (`templates/default/skin.html` + `style.css`) 에서 Odyssey 전용 위젯/커버/CSS 떼어낸 정제본. **현재 미가공 — 원본 그대로 들어있음, 정제는 todo.md 참조** |
 
 #### gotchas 상세
 
@@ -118,7 +116,7 @@ LLM 받아서
   → 원래 도구 재시도
 ```
 
-세션 수명: 카카오/티스토리 쿠키 수일~수주 (로그인 유지 시). Notion OAuth refresh token 보다는 짧지만 충분히 실용적. 실측: 같은 세션에서 `browser_close` 후 재진입 시 만료 (Playwright context 리셋), 디스크 storageState 의 영속성은 Phase 1 구현 시 자연스럽게 검증.
+세션 수명: 카카오/티스토리 쿠키 수일~수주 (로그인 유지 시). Notion OAuth refresh token 보다는 짧지만 충분히 실용적. 실측: 같은 세션에서 `browser_close` 후 재진입 시 만료 (Playwright context 리셋), 디스크 storageState 의 영속성은 구현 중 자연스럽게 검증.
 
 봇 탐지 대응: 요청 간격 흔들기, 실제 user-agent, 정상 viewport.
 
@@ -159,7 +157,7 @@ tistory-mcp/
   templates/
     default/              # 동작 스킨 골격. resource source.
                           # Odyssey 원본 통째 복사 → 잡것 떼고 정제
-                          # 정제 작업은 Phase 1 안에서. 초기 커밋엔 원본 그대로
+                          # 정제 작업은 todo.md 참조. 초기 커밋엔 원본 그대로
 ```
 
 직전 설계 대비 변화:
@@ -168,42 +166,3 @@ tistory-mcp/
 - `mock.ts` 삭제
 - `browser.ts` 가 **session_init 전용으로 축소** — 글쓰기/수정/이미지 다 fetch 라 브라우저 안 필요
 - `api.ts` 가 가장 큰 파일 (11 endpoint)
-
----
-
-## 5. 단계 (Roadmap)
-
-### Phase 1 — 사용자 통증 직격 자동화 (1-2주)
-
-- `tistory_session_init`
-- `tistory_publish_post` / `tistory_update_post` / `tistory_delete_post` / `tistory_upload_image`
-- `tistory_apply_skin` / `tistory_apply_skin_settings`
-- `tistory_fetch_meta`
-- 4 resources (`substitutions` / `page-types` / `gotchas` / `template-default`)
-- `npx` 배포
-
-이 시점에 사용자 통증 1 (스킨 복붙 루프) + 통증 2 (글쓰기 동선 + 이미지) 둘 다 해소. **모든 도구 fetch 기반** (Playwright 는 `session_init` 만).
-
-### Phase 2 — 미리보기 / 검증 보강
-
-- `tistory_preview_skin` / `tistory_screenshot` / `tistory_fetch_post`
-- `skin_validate`
-- prompts 정리
-
-### Phase 3 — 폴리시
-
-- `tistory_search_posts`
-- 추가 template (magazine, gallery)
-
----
-
-## 6. 다음 액션
-
-1. 저장소 초기화 (`tistory-mcp` repo, MIT)
-2. `src/tistory/catalog.ts` — `docs/catalog.md` 를 TS object 화 + raw HTML 재파싱 보강
-3. `src/tistory/api.ts` — 래퍼들. 11개 endpoint 한 파일:
-   - 스킨: `getSkin(cookie)`, `applySkin(cookie, {html, css, isPreview})`, `getSkinSettings(cookie)`, `applySkinSettings(cookie, body)`, `previewSkin(cookie, page, body)`
-   - 글: `publishPost(cookie, body)`, `updatePost(cookie, id, body)`, `deletePost(cookie, id)`, `listPosts(cookie, query)`, `uploadImage(cookie, file)`
-   - 메타: `fetchMeta(cookie)` ← `window.Config.blog` inline 파싱
-4. `templates/default/` 에 preview 이미지 4종 추가 + 정제 (잡것 제거) — Phase 1 후반. (Odyssey 원본 통째 복사는 2026-05-25 완료)
-5. **Phase 1 풀 (스킨 4개 + 글 3개 + 이미지 + meta + session_init)** 구현 → 직접 써보기
