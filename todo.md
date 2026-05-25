@@ -35,7 +35,7 @@
 
 ### 도구 (코어 모듈 후)
 
-- [ ] **tool: tistory_session_init**
+- [x] **tool: tistory_session_init**
   - owns: `src/tools/session_init.ts`
   - depends: browser.ts
 - [ ] **tool: tistory_publish_post / update_post / delete_post**
