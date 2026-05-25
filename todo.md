@@ -97,3 +97,5 @@
 - [x] **추가 template** — magazine, gallery
   - owns: `templates/magazine/`, `templates/gallery/`
   - depends: foundation
+- [x] **src/index.ts wiring 수복 + 0.1.1 재발행** — 0.1.0 publish 직후 스모크에서 발견. 모든 도구·리소스·프롬프트 모듈은 만들었지만 `src/index.ts` 가 foundation 스켈레톤 (ping 1개) 그대로라 `npx -y tistory-mcp@0.1.0` 이 빈 서버를 띄움. `src/tools/index.ts` barrel 신규 + `registerTools`/`registerResources`/`registerPrompts` 호출 + 버전 0.1.1. publish 자체는 사용자 수동
+  - owns: `src/index.ts`, `src/tools/index.ts`, `package.json`
