@@ -62,6 +62,8 @@
 - [x] **templates/default 정제** — Odyssey 위젯/커버/전용 CSS 제거 + preview 이미지 4종 (`preview.gif`/`preview256.jpg`/`preview560.jpg`/`preview1600.jpg`) 추가
   - owns: `templates/default/`
 - [x] **`npx` 배포 준비** — `package.json` bin + README
+  - owns: `package.json`, `README.md`
+  - depends: foundation
 
 ---
 
@@ -87,4 +89,6 @@
 ## Phase 3 — 폴리시
 
 - [ ] **tool: tistory_search_posts** — 글 검색
+  - owns: `src/tools/search_posts.ts`
+  - depends: api.ts
 - [ ] **추가 template** — magazine, gallery
