@@ -88,7 +88,7 @@
 
 ## Phase 3 — 폴리시
 
-- [ ] **tool: tistory_search_posts** — 글 검색
+- [x] **tool: tistory_search_posts** — 글 검색
   - owns: `src/tools/search_posts.ts`
   - depends: api.ts
 - [ ] **추가 template** — magazine, gallery
