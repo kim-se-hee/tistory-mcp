@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <title>[##_page_title_##]</title>
+    <meta name="title" content="[##_page_title_##] :: [##_title_##]" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="[##_desc_##]" />
+    <link rel="alternate" type="application/rss+xml" title="[##_title_##]" href="[##_rss_url_##]" />
+    <link rel="stylesheet" type="text/css" href="./style.css" />
+</head>
+
+<body id="[##_body_id_##]">
+
+<s_t3>
+
+<a class="skip-link" href="#main">본문 바로가기</a>
+
+<header class="site-header">
+    <div class="container header-inner">
+        <h1 class="site-title"><a href="[##_blog_link_##]">[##_title_##]</a></h1>
+
+        <nav class="nav" aria-label="주 메뉴">
+            [##_blog_menu_##]
+        </nav>
+
+        <form class="search" action="[##_blog_link_##]search" method="get" role="search">
+            <input type="text" name="search" placeholder="Search" aria-label="검색">
+        </form>
+    </div>
+</header>
+
+[##_revenue_list_upper_##]
+
+<main id="main" class="main">
+    <div class="container">
+
+        <!-- 모든 글 리스트 페이지: 인덱스 / 카테고리 / 검색 / 태그 / 아카이브 -->
+        <s_list>
+            <section class="page-head">
+                <h1 class="page-title">
+                    <em>[##_list_conform_##]</em>
+                    <span class="page-title-count">[##_list_count_##]</span>
+                </h1>
+            </section>
+
+            <ul class="tile-grid">
+                <s_list_rep>
+                    <li class="tile">
+                        <a href="[##_list_rep_link_##]" class="tile-link">
+                            <s_list_rep_thumbnail>
+                                <div class="tile-thumb">
+                                    <img src="[##_list_rep_thumbnail_url_##]" alt="" loading="lazy" />
+                                </div>
+                            </s_list_rep_thumbnail>
+
+                            <div class="tile-caption">
+                                <p class="tile-meta">
+                                    <span class="tile-category">[##_list_rep_category_##]</span>
+                                    <span class="tile-meta-sep" aria-hidden="true">·</span>
+                                    <time class="tile-date">[##_list_rep_regdate_##]</time>
+                                </p>
+                                <h3 class="tile-title">[##_list_rep_title_##]</h3>
+                            </div>
+                        </a>
+                    </li>
+                </s_list_rep>
+            </ul>
+
+            <s_list_empty>
+                <div class="empty-list">
+                    <p>해당하는 글이 없습니다.</p>
+                </div>
+            </s_list_empty>
+        </s_list>
+
+        <!-- 글 단독 페이지 (permalink) -->
+        <s_article_rep>
+            <s_permalink_article_rep>
+                <article class="post">
+                    <header class="post-header">
+                        <p class="post-meta">
+                            <span class="post-meta-category">[##_article_rep_category_##]</span>
+                            <span class="post-meta-sep" aria-hidden="true">·</span>
+                            <time class="post-meta-date">[##_article_rep_date_##]</time>
+                            <span class="post-meta-sep" aria-hidden="true">·</span>
+                            <span class="post-meta-author">[##_article_rep_author_##]</span>
+                        </p>
+                        <h1 class="post-h1">[##_article_rep_title_##]</h1>
+                    </header>
+
+                    <div class="post-body" id="article-view">
+                        [##_article_rep_desc_##]
+                    </div>
+
+                    <footer class="post-footer">
+                        <s_tag_label>
+                            <div class="post-tags">[##_tag_label_rep_##]</div>
+                        </s_tag_label>
+
+                        <div class="post-page">
+                            <s_article_prev>
+                                <a href="[##_article_prev_link_##]" class="post-page-link post-page-prev">
+                                    <span class="post-page-label">← 이전글</span>
+                                    <strong>[##_article_prev_title_##]</strong>
+                                </a>
+                            </s_article_prev>
+                            <s_article_next>
+                                <a href="[##_article_next_link_##]" class="post-page-link post-page-next">
+                                    <span class="post-page-label">다음글 →</span>
+                                    <strong>[##_article_next_title_##]</strong>
+                                </a>
+                            </s_article_next>
+                        </div>
+                    </footer>
+
+                    <div class="article-reply">
+                        <s_rp>
+                            [##_comment_group_##]
+                        </s_rp>
+                    </div>
+                </article>
+            </s_permalink_article_rep>
+        </s_article_rep>
+
+        <!-- 보호글 -->
+        <s_article_protected>
+            <s_permalink_article_rep>
+                <article class="post post-protected">
+                    <header class="post-header">
+                        <p class="post-meta">
+                            <span class="post-meta-category">[##_article_rep_category_##]</span>
+                            <span class="post-meta-sep" aria-hidden="true">·</span>
+                            <time class="post-meta-date">[##_article_rep_date_##]</time>
+                        </p>
+                        <h1 class="post-h1">[##_article_rep_title_##]</h1>
+                    </header>
+
+                    <div class="post-body">
+                        <div class="protected">
+                            <p class="protected-text">보호된 글입니다. 비밀번호를 입력하세요.</p>
+                            <form class="protected-form" onsubmit="[##_article_dissolve_##]">
+                                <input type="password" id="[##_article_password_##]" name="[##_article_password_##]" placeholder="비밀번호" />
+                                <button type="submit">확인</button>
+                            </form>
+                        </div>
+                    </div>
+                </article>
+            </s_permalink_article_rep>
+        </s_article_protected>
+
+        <!-- 공지글 -->
+        <s_notice_rep>
+            <s_permalink_article_rep>
+                <article class="post">
+                    <header class="post-header">
+                        <p class="post-meta">
+                            <span class="post-meta-category">Notice</span>
+                            <span class="post-meta-sep" aria-hidden="true">·</span>
+                            <time class="post-meta-date">[##_notice_rep_date_##]</time>
+                        </p>
+                        <h1 class="post-h1">[##_notice_rep_title_##]</h1>
+                    </header>
+                    <div class="post-body" id="article-view">[##_notice_rep_desc_##]</div>
+                </article>
+            </s_permalink_article_rep>
+        </s_notice_rep>
+
+        <!-- 페이지 (소개 등) -->
+        <s_page_rep>
+            <s_permalink_article_rep>
+                <article class="post">
+                    <header class="post-header">
+                        <p class="post-meta">
+                            <time class="post-meta-date">[##_article_rep_date_##]</time>
+                        </p>
+                        <h1 class="post-h1">[##_article_rep_title_##]</h1>
+                    </header>
+                    <div class="post-body" id="article-view">[##_article_rep_desc_##]</div>
+                </article>
+            </s_permalink_article_rep>
+        </s_page_rep>
+
+        <!-- 태그 페이지 -->
+        <s_tag>
+            <section class="page-head">
+                <p class="eyebrow">Tags</p>
+                <h1 class="page-title">전체 태그</h1>
+            </section>
+            <div class="tag-cloud">
+                <s_tag_rep>
+                    <a href="[##_tag_link_##]" class="tag-cloud-item [##_tag_class_##]">
+                        <span class="tag-cloud-name">#[##_tag_name_##]</span>
+                    </a>
+                </s_tag_rep>
+            </div>
+        </s_tag>
+
+        <!-- 방명록 -->
+        <s_guest>
+            <section class="page-head">
+                <p class="eyebrow">Guestbook</p>
+                <h1 class="page-title">방명록</h1>
+            </section>
+            <div class="article-reply">
+                [##_guestbook_group_##]
+            </div>
+        </s_guest>
+
+        <!-- 페이징 -->
+        <s_paging>
+            <nav class="paging" aria-label="페이지 이동">
+                <a [##_prev_page_##] class="paging-link paging-prev [##_no_more_prev_##]">← Prev</a>
+                <ul class="paging-nums">
+                    <s_paging_rep>
+                        <li><a [##_paging_rep_link_##] class="paging-num">[##_paging_rep_link_num_##]</a></li>
+                    </s_paging_rep>
+                </ul>
+                <a [##_next_page_##] class="paging-link paging-next [##_no_more_next_##]">Next →</a>
+            </nav>
+        </s_paging>
+
+        <!-- 사이드바: 관리자에서 추가한 모듈 -->
+        <s_sidebar>
+            <aside class="sidebar">
+                <s_sidebar_element>
+                    <div class="sidebar-module">[##_sidebar_element_##]</div>
+                </s_sidebar_element>
+            </aside>
+        </s_sidebar>
+
+    </div>
+</main>
+
+[##_revenue_list_lower_##]
+
+<footer class="site-footer">
+    <div class="container footer-inner">
+        <p class="footer-copy">© [##_title_##]</p>
+        <p class="footer-meta">
+            <a href="[##_rss_url_##]">RSS</a>
+            <span aria-hidden="true">·</span>
+            <a href="https://www.tistory.com" target="_blank" rel="noopener">Tistory</a>
+        </p>
+    </div>
+</footer>
+
+</s_t3>
+
+</body>
+</html>

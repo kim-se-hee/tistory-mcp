@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<skin>
+    <information>
+        <name>tistory-mcp gallery</name>
+        <version>0.1.0</version>
+        <description>썸네일 그리드 위주 갤러리 레이아웃. 글 목록은 정사각 타일, 제목/메타는 hover 시 오버레이로. 글 단독 페이지는 단일 컬럼 가독성.</description>
+        <license>MIT</license>
+    </information>
+    <author>
+        <name>tistory-mcp</name>
+        <homepage>https://github.com/kim-se-hee/tistory-mcp</homepage>
+    </author>
+    <default>
+        <recentEntries>20</recentEntries>
+        <recentComments>5</recentComments>
+        <recentTrackbacks>0</recentTrackbacks>
+        <tagsInCloud>30</tagsInCloud>
+        <sortInCloud>name</sortInCloud>
+        <lengthOfRecentNotice>40</lengthOfRecentNotice>
+        <lengthOfRecentEntry>40</lengthOfRecentEntry>
+        <lengthOfRecentComment>40</lengthOfRecentComment>
+        <lengthOfRecentTrackback>40</lengthOfRecentTrackback>
+        <lengthOfLink>40</lengthOfLink>
+        <expandableCategory>true</expandableCategory>
+        <categoryItemStyle>NUMBER</categoryItemStyle>
+        <contentWidth>1280</contentWidth>
+    </default>
+    <variables/>
+    <covers/>
+</skin>
