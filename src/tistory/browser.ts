@@ -26,6 +26,72 @@ const KEYTAR_SERVICE = "tistory-mcp";
 /** 단일 블로그만 쓰는 사용자를 위한 기본 account. host 미지정 load 시 fallback. */
 const DEFAULT_ACCOUNT = "default";
 
+/**
+ * Windows Credential Manager 1건당 한도는 2560B (UTF-16 = 1280 char). storageState 는
+ * 카카오 OAuth 쿠키까지 합치면 수 KB 라 통째로 못 박는다. 안전 마진 두고 1000자씩 청크.
+ * 매니페스트는 base account 슬롯에, 청크는 `${account}#${i}` 에.
+ */
+const CHUNK_CHAR_LIMIT = 1000;
+interface ChunkManifest {
+  v: 1;
+  chunks: number;
+}
+
+async function setChunked(account: string, value: string): Promise<void> {
+  await clearChunked(account);
+  const parts: string[] = [];
+  for (let i = 0; i < value.length; i += CHUNK_CHAR_LIMIT) {
+    parts.push(value.slice(i, i + CHUNK_CHAR_LIMIT));
+  }
+  const manifest: ChunkManifest = { v: 1, chunks: parts.length };
+  await keytar.setPassword(KEYTAR_SERVICE, account, JSON.stringify(manifest));
+  for (let i = 0; i < parts.length; i++) {
+    await keytar.setPassword(KEYTAR_SERVICE, `${account}#${i}`, parts[i]!);
+  }
+}
+
+async function getChunked(account: string): Promise<string | null> {
+  const head = await keytar.getPassword(KEYTAR_SERVICE, account);
+  if (!head) return null;
+  const manifest = parseManifest(head);
+  if (!manifest) {
+    // 매니페스트 형식이 아니면 구버전(raw) 데이터로 간주 — 그대로 반환.
+    return head;
+  }
+  const parts: string[] = [];
+  for (let i = 0; i < manifest.chunks; i++) {
+    const part = await keytar.getPassword(KEYTAR_SERVICE, `${account}#${i}`);
+    if (part == null) return null; // 청크 손실 → 손상으로 간주
+    parts.push(part);
+  }
+  return parts.join("");
+}
+
+async function clearChunked(account: string): Promise<void> {
+  const head = await keytar.getPassword(KEYTAR_SERVICE, account).catch(() => null);
+  if (head) {
+    const manifest = parseManifest(head);
+    if (manifest) {
+      for (let i = 0; i < manifest.chunks; i++) {
+        await keytar.deletePassword(KEYTAR_SERVICE, `${account}#${i}`).catch(() => undefined);
+      }
+    }
+  }
+  await keytar.deletePassword(KEYTAR_SERVICE, account).catch(() => undefined);
+}
+
+function parseManifest(raw: string): ChunkManifest | null {
+  try {
+    const v = JSON.parse(raw) as Partial<ChunkManifest>;
+    if (v && v.v === 1 && typeof v.chunks === "number" && v.chunks >= 0) {
+      return { v: 1, chunks: v.chunks };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // storageState 직렬화 타입
 // ─────────────────────────────────────────────────────────────────────────────
@@ -163,19 +229,24 @@ export async function loginInteractive(opts: LoginOptions): Promise<LoginResult>
     // SPA 가 window.Config 박을 시간 — networkidle 까지는 무거우니 domcontentloaded 후 짧게.
     await page.waitForLoadState("domcontentloaded");
 
-    // window.Config.blog.blogId — 메타 추출은 best-effort. 파싱 실패해도 로그인은 성공.
+    // window.Config.blog.blogSettings.blogId — 메타 추출은 best-effort. 파싱 실패해도 로그인은 성공.
+    // 실측 (2026-05): top-level `blog.blogId` 는 더 이상 박히지 않고 `blogSettings.blogId` (string) 에만 있음.
     const blogId = await page
       .evaluate(() => {
         // @ts-expect-error - window.Config 는 admin 페이지가 inline 으로 박는다 (docs/api.md §2.1)
-        const cfg = window.Config as { blog?: { blogId?: number } } | undefined;
-        return cfg?.blog?.blogId != null ? String(cfg.blog.blogId) : null;
+        const cfg = window.Config as
+          | { blog?: { blogSettings?: { blogId?: string | number } } }
+          | undefined;
+        const raw = cfg?.blog?.blogSettings?.blogId;
+        return raw != null ? String(raw) : null;
       })
       .catch(() => null);
 
     const state = (await context.storageState()) as StoredState;
-    await keytar.setPassword(KEYTAR_SERVICE, host, JSON.stringify(state));
+    const stateJson = JSON.stringify(state);
+    await setChunked(host, stateJson);
     // 단일 블로그 사용자 편의를 위해 `default` 별칭도 같이 박는다 — 마지막 로그인 = default.
-    await keytar.setPassword(KEYTAR_SERVICE, DEFAULT_ACCOUNT, JSON.stringify(state));
+    await setChunked(DEFAULT_ACCOUNT, stateJson);
 
     const cookieHeader = serializeCookies(state.cookies, host);
     const expiresAt = earliestExpiry(state.cookies, host);
@@ -200,7 +271,7 @@ export async function loginInteractive(opts: LoginOptions): Promise<LoginResult>
  */
 export async function loadStoredCookies(blogUrl?: string): Promise<string | null> {
   const account = blogUrl ? normalizeHost(blogUrl) : DEFAULT_ACCOUNT;
-  const json = await keytar.getPassword(KEYTAR_SERVICE, account);
+  const json = await getChunked(account);
   if (!json) return null;
 
   const state = parseState(json);
@@ -220,14 +291,19 @@ export async function loadStoredCookies(blogUrl?: string): Promise<string | null
  * 전체 와이프는 호출자가 host 별로 반복.
  */
 export async function clearStoredCookies(blogUrl?: string): Promise<void> {
-  const account = blogUrl ? normalizeHost(blogUrl) : DEFAULT_ACCOUNT;
-  await keytar.deletePassword(KEYTAR_SERVICE, account).catch(() => undefined);
-  if (!blogUrl) {
-    // default 만 지울 땐 host 별 항목도 같이 비워야 stale 안 남음
-    const all = await keytar.findCredentials(KEYTAR_SERVICE).catch(() => []);
-    for (const cred of all) {
-      await keytar.deletePassword(KEYTAR_SERVICE, cred.account).catch(() => undefined);
-    }
+  if (blogUrl) {
+    await clearChunked(normalizeHost(blogUrl));
+    return;
+  }
+  // default 만 지울 땐 host 별 항목도 같이 비워야 stale 안 남음. base account 별로 묶어
+  // 청크까지 같이 지운다 (`host#N` 형태는 base 슬롯의 매니페스트 따라 정리됨).
+  const all = await keytar.findCredentials(KEYTAR_SERVICE).catch(() => []);
+  const bases = new Set<string>();
+  for (const cred of all) {
+    bases.add(cred.account.replace(/#\d+$/, ""));
+  }
+  for (const base of bases) {
+    await clearChunked(base);
   }
 }
 
