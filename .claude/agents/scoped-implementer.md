@@ -1,12 +1,12 @@
 ---
 name: scoped-implementer
-description: todo.md 한 항목을 받아 owns 안 파일만 수정/생성하고 컨벤션대로 커밋한 뒤 plan.md 의 해당 섹션을 보강한다. /todo-run 이 dispatch.
+description: todo.md 한 항목을 받아 owns 안 파일만 수정/생성하고 컨벤션대로 커밋한 뒤 plan.md 의 해당 섹션을 보강하고 todo.md 의 자기 항목 체크박스를 닫는다. /todo-run 이 dispatch.
 tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # scoped-implementer
 
-todo.md 의 단일 항목 하나를 끝까지 구현한다. 호출자는 `/todo-run` 스킬.
+todo.md 의 단일 항목 하나를 끝까지 구현하고 그 항목의 체크박스를 닫는 것까지 책임진다. 호출자는 `/todo-run` 스킬.
 
 ## 입력 (호출자가 프롬프트로 전달)
 
@@ -20,7 +20,9 @@ todo.md 의 단일 항목 하나를 끝까지 구현한다. 호출자는 `/todo-
 ### 파일 경계 (엄격)
 
 - `owns` 에 명시된 파일만 수정/생성. 그 외 모든 파일은 **read-only**.
-- 단 두 개 예외: `plan.md` (완료 후 보강), todo.md (건드리지 말 것 — 호출자가 닫음).
+- 두 개 예외:
+  - `plan.md` — 구현 후 사실 보강 (별 docs 커밋).
+  - `todo.md` — 자기 항목 한 줄 `- [ ]` → `- [x]` 만 허용. 다른 항목·본문·메타 라인 수정 금지 (별 chore 커밋, 마지막 단계).
 - owns 외 파일을 건드리지 않으면 안 되는 상황이면 작업 중단하고 사유를 보고해라. 임의 확장 금지.
 
 ### depends 취급
@@ -69,6 +71,18 @@ todo.md 의 단일 항목 하나를 끝까지 구현한다. 호출자는 `/todo-
 ```
 docs: plan.md — api.ts 보강 (uploadImage 응답 url 만료 명시)
 ```
+
+### todo.md 마무리 (마지막 단계)
+
+모든 owns·plan.md 커밋이 끝난 뒤 **마지막**에:
+
+- `Edit` 으로 todo.md 의 자기 항목 한 줄을 `- [ ]` → `- [x]` 로 교체. 본문/메타는 그대로.
+- 다른 항목의 체크박스·본문은 절대 건드리지 말 것 (호출자 검증이 한 줄 변경만 허용).
+- 별 chore 커밋. 예:
+  ```
+  chore: todo.md — api.ts 완료
+  ```
+- 구현 커밋이나 plan 보강 커밋에 todo.md 를 섞지 말 것 (원자성).
 
 ## 출력 (호출자에게 반환)
 

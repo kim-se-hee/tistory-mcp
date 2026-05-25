@@ -1,11 +1,11 @@
 ---
 name: todo-run
-description: todo.md 의 미체크 항목들을 dependency 순서대로 scoped-implementer 에게 직렬 dispatch. owns 경계 위반은 reject + 롤백. 완료 시 체크박스 닫음.
+description: todo.md 의 미체크 항목들을 dependency 순서대로 scoped-implementer 에게 직렬 dispatch. owns 경계 위반은 reject + 롤백. 체크박스 닫기는 워커가 담당.
 ---
 
 # /todo-run
 
-todo.md 미체크 항목을 골라 `scoped-implementer` 서브에이전트에게 직렬로 dispatch. 끝나면 owns 경계 검증 후 체크박스 닫는다.
+todo.md 미체크 항목을 골라 `scoped-implementer` 서브에이전트에게 직렬로 dispatch. 끝나면 owns 경계 검증만 한다. 체크박스 닫기는 워커의 마지막 단계.
 
 ## 기본 모드: 직렬
 
@@ -43,13 +43,12 @@ todo.md 미체크 항목을 골라 `scoped-implementer` 서브에이전트에게
    - 다음 외 파일이 있으면 **위반**:
      - 항목의 owns 에 명시된 파일
      - `plan.md` (보강 허용)
-   - **위반 시**: 사용자에게 알리고 `git reset --hard <기록한 sha>` 제안. 자동 실행 X — 반드시 사용자 승인 받고 실행. 그리고 그 항목은 스킵 처리하고 todo.md 도 안 닫는다.
+     - `todo.md` (워커가 자기 항목 체크박스 닫음 — 한 줄 `- [ ]` → `- [x]` 만 허용. 다른 항목/본문 수정은 위반)
+   - todo.md 변경이 정확히 자기 항목 한 줄인지 `git diff -- todo.md` 로 추가 검증. 다른 줄을 건드렸으면 위반.
+   - **위반 시**: 사용자에게 알리고 `git reset --hard <기록한 sha>` 제안. 자동 실행 X — 반드시 사용자 승인 받고 실행.
 
-6. **체크박스 닫기**
-   - 위반 없으면 todo.md 에서 해당 항목의 `- [ ]` → `- [x]` 로 교체 (`Edit`).
-   - 본문은 그대로 둠 (CLAUDE.md 규칙: 히스토리 보존).
-
-7. **다음 항목 또는 종료**
+6. **다음 항목 또는 종료**
+   - 검증 통과 시 별도 액션 없음 (워커가 이미 todo.md 닫고 chore 커밋함).
    - 남은 dispatch 가능 항목이 있고 사용자가 "계속" 이라 했으면 4번 반복.
    - 없으면 종료 보고: 완료 N개 / 위반 M개 / 스킵 K개.
 
@@ -70,7 +69,7 @@ todo.md 미체크 항목을 골라 `scoped-implementer` 서브에이전트에게
 ## 안 하는 것
 
 - plan.md 수정 (워커 전담)
-- todo.md 의 본문 수정 (체크박스만)
+- todo.md 수정 (워커가 자기 항목 체크박스 닫음 — 호출자는 검증만)
 - 새 todo 추가 (`/todo-plan` 전담)
 - 코드 직접 작성 (워커 전담)
 
