@@ -67,7 +67,7 @@
 
 ## Phase 2 — 미리보기 / 검증 보강
 
-- [ ] **tool: tistory_preview_skin** — `POST /preview/skin/{page}` 서버 렌더
+- [x] **tool: tistory_preview_skin** — `POST /preview/skin/{page}` 서버 렌더
 - [ ] **tool: tistory_screenshot** — Playwright 캡처 (MCP image response)
 - [ ] **tool: tistory_fetch_post** — 단일 글 본문 + 블로그 메타
 - [ ] **tool: skin_validate** — catalog 대조 + 블록 중첩 + preview 이미지 누락 + 함정 검사
