@@ -103,6 +103,10 @@
 
 **배포 마찰** 이 결정타. `npx -y @scope/tistory-mcp` 한 줄로 끝나야 함.
 
+publish 패키징 정책: `package.json` `files` 화이트리스트 = `dist` + `templates` + `README.md` + `LICENSE` 4종만. `.npmignore` 는 안전망 (files 누락/실수 대비). `src/` `docs/` `plan.md` `todo.md` `.claude/` `.githooks/` `tsconfig.json` `package-lock.json` 은 tarball 진입 금지. `version` 은 도구 13개 + 리소스 4종 + 프롬프트 3종 완비된 첫 공개 버전을 `0.1.0` 으로 책정 (Phase 1+2 완료, Phase 3 폴리시 진행 중). publish 자체는 사용자 수동 (`npm publish --access public`) — `prepublishOnly: tsc` 훅만 자동.
+
+함정: `npm publish --dry-run` 출력 `npm warn publish "bin[tistory-mcp]" script name was cleaned` 은 무해 (이름 정규화). LICENSE 파일은 아직 미생성 — 추가 todo 필요.
+
 ### 3.2. 인증: Notion-style JIT
 
 티스토리는 admin OAuth scope 안 줌. 카카오 로그인 + 2FA 푸시 (카카오톡 확인 버튼) = 헤드리스 불가 (실측 확정).
