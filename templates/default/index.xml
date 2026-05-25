@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<skin>
+    <information>
+        <name>tistory-mcp default</name>
+        <version>0.1.0</version>
+        <description>tistory-mcp 가 제공하는 미니멀 baseline 스킨. Odyssey 위젯/커버/전용 CSS 를 떼어낸 정제본. 추가 디자인은 위에 얹어라.</description>
+        <license>MIT</license>
+    </information>
+    <author>
+        <name>tistory-mcp</name>
+        <homepage>https://github.com/kim-se-hee/tistory-mcp</homepage>
+    </author>
+    <default>
+        <recentEntries>10</recentEntries>
+        <recentComments>5</recentComments>
+        <recentTrackbacks>0</recentTrackbacks>
+        <tagsInCloud>30</tagsInCloud>
+        <sortInCloud>name</sortInCloud>
+        <lengthOfRecentNotice>40</lengthOfRecentNotice>
+        <lengthOfRecentEntry>40</lengthOfRecentEntry>
+        <lengthOfRecentComment>40</lengthOfRecentComment>
+        <lengthOfRecentTrackback>40</lengthOfRecentTrackback>
+        <lengthOfLink>40</lengthOfLink>
+        <expandableCategory>true</expandableCategory>
+        <categoryItemStyle>NUMBER</categoryItemStyle>
+        <contentWidth>760</contentWidth>
+    </default>
+    <variables/>
+    <covers/>
+</skin>

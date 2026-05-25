@@ -1,1 +1,240 @@
-"<!DOCTYPE html>\n<html lang=\"ko\">\n<head>\n    <title>[##_page_title_##]</title>\n    <meta name=\"title\" content=\"[##_page_title_##] :: [##_title_##]\" />\n    <meta charset=\"utf-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <meta name=\"description\" content=\"[##_desc_##]\" />\n    <link rel=\"alternate\" type=\"application/rss+xml\" title=\"[##_title_##]\" href=\"[##_rss_url_##]\" />\n    <link rel=\"stylesheet\" type=\"text/css\" href=\"./style.css\" />\n\n    <script>\n        (function () {\n            try {\n                var stored = localStorage.getItem('theme');\n                var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');\n                document.documentElement.setAttribute('data-theme', theme);\n            } catch (e) {\n                document.documentElement.setAttribute('data-theme', 'light');\n            }\n        })();\n    </script>\n</head>\n\n<body id=\"[##_body_id_##]\">\n\n<s_t3>\n\n<a class=\"skip-link\" href=\"#main\">본문 바로가기</a>\n\n<header class=\"site-header\">\n    <div class=\"container header-inner\">\n        <ul class=\"header-social\" aria-label=\"프로필 링크\">\n            <li><a href=\"https://github.com/your-id\" class=\"header-social-link\" target=\"_blank\" rel=\"noopener\" aria-label=\"GitHub\">\n                <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55v-2.01c-3.2.69-3.87-1.36-3.87-1.36-.52-1.33-1.27-1.69-1.27-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.68 1.25 3.34.96.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.16 1.18.92-.26 1.9-.39 2.88-.39s1.96.13 2.88.39c2.2-1.49 3.16-1.18 3.16-1.18.62 1.58.23 2.75.11 3.04.73.81 1.18 1.83 1.18 3.09 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.05.78 2.12v3.14c0 .3.21.66.8.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z\"/></svg>\n            </a></li>\n            <li><a href=\"mailto:you@example.com\" class=\"header-social-link\" aria-label=\"Email\">\n                <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"2\"/><path d=\"M3 7l9 6 9-6\"/></svg>\n            </a></li>\n        </ul>\n\n        <nav class=\"nav\" aria-label=\"주 메뉴\">\n            [##_blog_menu_##]\n        </nav>\n\n        <div class=\"header-tools\">\n            <form class=\"search\" action=\"[##_blog_link_##]search\" method=\"get\" role=\"search\">\n                <input type=\"text\" name=\"search\" placeholder=\"Search\" aria-label=\"검색\">\n            </form>\n            <button type=\"button\" class=\"theme-toggle\" aria-label=\"라이트/다크 모드 전환\">\n                <svg class=\"theme-icon icon-sun\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41\"/></svg>\n                <svg class=\"theme-icon icon-moon\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z\"/></svg>\n            </button>\n        </div>\n    </div>\n</header>\n\n[##_revenue_list_upper_##]\n\n<main id=\"main\" class=\"main\">\n    <div class=\"container\">\n\n        <!-- 메인 페이지 전용: 프로젝트 큐레이션 (/tag/이름 으로 진입) -->\n        <section class=\"index-only hero\">\n            <div class=\"hero-projects\">\n                <span class=\"hero-projects-label\">Projects</span>\n                <a href=\"[##_blog_link_##]tag/trypto\" class=\"project-tag\">#trypto</a>\n            </div>\n        </section>\n\n        <!-- 카테고리 chips: 티스토리가 실제 카테고리를 자동 출력. 글이 있는 카테고리만 노출 -->\n        <nav class=\"index-only category-nav category-list-auto\" aria-label=\"카테고리 바로가기\">\n            [##_category_list_##]\n            <a href=\"[##_blog_link_##]tag\" class=\"category-chip category-chip--more\">All tags →</a>\n        </nav>\n\n        <!-- 모든 글 리스트 페이지: 인덱스 / 카테고리 / 검색 / 태그 / 아카이브 -->\n        <s_list>\n            <!-- page-head 는 메인 페이지에서 CSS 로 숨김 -->\n            <section class=\"page-head\">\n                <h1 class=\"page-title\">\n                    <em class=\"archives\">[##_list_conform_##]</em>\n                    <span class=\"page-title-count\">[##_list_count_##]</span>\n                </h1>\n            </section>\n\n            <section class=\"post-list-section\">\n                <h2 class=\"section-title\">Latest</h2>\n                <ul class=\"post-list\">\n                    <s_list_rep>\n                        <li class=\"post-item\">\n                            <a href=\"[##_list_rep_link_##]\" class=\"post-link\">\n                                <span class=\"post-thumb\" style=\"background-image: url('[##_list_rep_thumbnail_##]');\" aria-hidden=\"true\"></span>\n                                <time class=\"post-date\">[##_list_rep_regdate_##]</time>\n                                <span class=\"post-meta-divider\" aria-hidden=\"true\">·</span>\n                                <span class=\"post-category\">[##_list_rep_category_##]</span>\n                                <h3 class=\"post-title\">[##_list_rep_title_##]</h3>\n                                <p class=\"post-summary\">[##_list_rep_desc_##]</p>\n                                <span class=\"post-arrow\" aria-hidden=\"true\">→</span>\n                            </a>\n                        </li>\n                    </s_list_rep>\n                </ul>\n\n                <s_list_empty>\n                    <div class=\"empty-list\">\n                        <p>해당하는 글이 없습니다.</p>\n                    </div>\n                </s_list_empty>\n            </section>\n        </s_list>\n\n        <!-- 글 단독 페이지 (permalink) -->\n        <s_article_rep>\n            <s_permalink_article_rep>\n                <article class=\"post\">\n                    <header class=\"post-header\">\n                        <p class=\"post-meta\">\n                            <span class=\"post-meta-category\">[##_article_rep_category_##]</span>\n                            <span class=\"post-meta-sep\" aria-hidden=\"true\">·</span>\n                            <time class=\"post-meta-date\">[##_article_rep_date_##]</time>\n                            <span class=\"post-meta-sep\" aria-hidden=\"true\">·</span>\n                            <span class=\"post-meta-author\">[##_article_rep_author_##]</span>\n                        </p>\n                        <h1 class=\"post-h1\">[##_article_rep_title_##]</h1>\n                    </header>\n\n                    <div class=\"post-body\" id=\"article-view\">\n                        [##_article_rep_desc_##]\n                    </div>\n\n                    <footer class=\"post-footer\">\n                        <s_tag_label>\n                            <div class=\"post-tags\">[##_tag_label_rep_##]</div>\n                        </s_tag_label>\n\n                        <div class=\"post-page\">\n                            <s_article_prev>\n                                <a href=\"[##_article_prev_link_##]\" class=\"post-page-link post-page-prev\">\n                                    <span class=\"post-page-label\">← 이전글</span>\n                                    <strong>[##_article_prev_title_##]</strong>\n                                </a>\n                            </s_article_prev>\n                            <s_article_next>\n                                <a href=\"[##_article_next_link_##]\" class=\"post-page-link post-page-next\">\n                                    <span class=\"post-page-label\">다음글 →</span>\n                                    <strong>[##_article_next_title_##]</strong>\n                                </a>\n                            </s_article_next>\n                        </div>\n                    </footer>\n\n                    <div class=\"article-reply\">\n                        <s_rp>\n                            [##_comment_group_##]\n                        </s_rp>\n                    </div>\n                </article>\n            </s_permalink_article_rep>\n        </s_article_rep>\n\n        <!-- 보호글 -->\n        <s_article_protected>\n            <s_permalink_article_rep>\n                <article class=\"post post-protected\">\n                    <header class=\"post-header\">\n                        <p class=\"post-meta\">\n                            <span class=\"post-meta-category\">[##_article_rep_category_##]</span>\n                            <span class=\"post-meta-sep\" aria-hidden=\"true\">·</span>\n                            <time class=\"post-meta-date\">[##_article_rep_date_##]</time>\n                        </p>\n                        <h1 class=\"post-h1\">[##_article_rep_title_##]</h1>\n                    </header>\n\n                    <div class=\"post-body\">\n                        <div class=\"protected\">\n                            <p class=\"protected-text\">보호된 글입니다. 비밀번호를 입력하세요.</p>\n                            <form class=\"protected-form\" onsubmit=\"[##_article_dissolve_##]\">\n                                <input type=\"password\" id=\"[##_article_password_##]\" name=\"[##_article_password_##]\" placeholder=\"비밀번호\" />\n                                <button type=\"submit\">확인</button>\n                            </form>\n                        </div>\n                    </div>\n                </article>\n            </s_permalink_article_rep>\n        </s_article_protected>\n\n        <!-- 공지글 -->\n        <s_notice_rep>\n            <s_permalink_article_rep>\n                <article class=\"post\">\n                    <header class=\"post-header\">\n                        <p class=\"post-meta\">\n                            <span class=\"post-meta-category\">Notice</span>\n                            <span class=\"post-meta-sep\" aria-hidden=\"true\">·</span>\n                            <time class=\"post-meta-date\">[##_notice_rep_date_##]</time>\n                        </p>\n                        <h1 class=\"post-h1\">[##_notice_rep_title_##]</h1>\n                    </header>\n                    <div class=\"post-body\" id=\"article-view\">[##_notice_rep_desc_##]</div>\n                </article>\n            </s_permalink_article_rep>\n        </s_notice_rep>\n\n        <!-- 페이지 (소개 등) -->\n        <s_page_rep>\n            <s_permalink_article_rep>\n                <article class=\"post\">\n                    <header class=\"post-header\">\n                        <p class=\"post-meta\">\n                            <time class=\"post-meta-date\">[##_article_rep_date_##]</time>\n                        </p>\n                        <h1 class=\"post-h1\">[##_article_rep_title_##]</h1>\n                    </header>\n                    <div class=\"post-body\" id=\"article-view\">[##_article_rep_desc_##]</div>\n                </article>\n            </s_permalink_article_rep>\n        </s_page_rep>\n\n        <!-- 태그 페이지 -->\n        <s_tag>\n            <section class=\"page-head\">\n                <p class=\"eyebrow\">Tags</p>\n                <h1 class=\"page-title\">전체 태그</h1>\n            </section>\n            <div class=\"tag-cloud\">\n                <s_tag_rep>\n                    <a href=\"[##_tag_link_##]\" class=\"tag-cloud-item [##_tag_class_##]\">\n                        <span class=\"tag-cloud-name\">#[##_tag_name_##]</span>\n                    </a>\n                </s_tag_rep>\n            </div>\n        </s_tag>\n\n        <!-- 방명록 -->\n        <s_guest>\n            <section class=\"page-head\">\n                <p class=\"eyebrow\">Guestbook</p>\n                <h1 class=\"page-title\">방명록</h1>\n            </section>\n            <div class=\"article-reply\">\n                [##_guestbook_group_##]\n            </div>\n        </s_guest>\n\n        <!-- 페이징 -->\n        <s_paging>\n            <nav class=\"paging\" aria-label=\"페이지 이동\">\n                <a [##_prev_page_##] class=\"paging-link paging-prev [##_no_more_prev_##]\">← Prev</a>\n                <ul class=\"paging-nums\">\n                    <s_paging_rep>\n                        <li><a [##_paging_rep_link_##] class=\"paging-num\">[##_paging_rep_link_num_##]</a></li>\n                    </s_paging_rep>\n                </ul>\n                <a [##_next_page_##] class=\"paging-link paging-next [##_no_more_next_##]\">Next →</a>\n            </nav>\n        </s_paging>\n\n        <!-- 사이드바: 관리자에서 추가한 모듈 -->\n        <s_sidebar>\n            <aside class=\"sidebar\">\n                <s_sidebar_element>\n                    <div class=\"sidebar-module\">[##_sidebar_element_##]</div>\n                </s_sidebar_element>\n            </aside>\n        </s_sidebar>\n\n    </div>\n</main>\n\n[##_revenue_list_lower_##]\n\n<footer class=\"site-footer\">\n    <div class=\"container footer-inner\">\n        <p class=\"footer-copy\">© [##_title_##]</p>\n        <p class=\"footer-meta\">\n            <a href=\"[##_rss_url_##]\">RSS</a>\n            <span aria-hidden=\"true\">·</span>\n            <a href=\"https://www.tistory.com\" target=\"_blank\" rel=\"noopener\">Tistory</a>\n        </p>\n    </div>\n</footer>\n\n</s_t3>\n\n<script>\n    (function () {\n        var toggle = document.querySelector('.theme-toggle');\n        if (toggle) {\n            toggle.addEventListener('click', function () {\n                var current = document.documentElement.getAttribute('data-theme') || 'light';\n                var next = current === 'dark' ? 'light' : 'dark';\n                document.documentElement.setAttribute('data-theme', next);\n                try { localStorage.setItem('theme', next); } catch (e) {}\n            });\n        }\n\n        document.querySelectorAll('.post-body pre').forEach(function (pre) {\n            if (pre.querySelector('.code-copy')) return;\n            var btn = document.createElement('button');\n            btn.type = 'button';\n            btn.className = 'code-copy';\n            btn.textContent = 'Copy';\n            btn.setAttribute('aria-label', '코드 복사');\n            btn.addEventListener('click', function () {\n                var code = pre.querySelector('code') || pre;\n                var text = code.innerText;\n                if (navigator.clipboard) {\n                    navigator.clipboard.writeText(text).then(function () {\n                        btn.textContent = 'Copied';\n                        setTimeout(function () { btn.textContent = 'Copy'; }, 1500);\n                    });\n                }\n            });\n            pre.appendChild(btn);\n        });\n\n        document.querySelectorAll('.post-body a[href^=\"http\"]').forEach(function (a) {\n            if (a.host !== location.host) {\n                a.target = '_blank';\n                a.rel = 'noopener noreferrer';\n            }\n        });\n\n        // 인덱스 카드의 빈 썸네일: 인라인 url('') 제거하고 fallback 그라데이션 활성화\n        document.querySelectorAll('.post-thumb').forEach(function (thumb) {\n            var style = thumb.getAttribute('style') || '';\n            if (/url\\(\\s*['\"]?\\s*['\"]?\\s*\\)/.test(style)) {\n                thumb.removeAttribute('style');\n                thumb.classList.add('post-thumb--empty');\n            }\n        });\n\n        // 인덱스 featured 카드(첫 2개)의 요약을 해당 글의 .post-subtitle 로 정확히 치환.\n        // 실패하면 Tistory 가 자동 생성한 요약([##_list_rep_desc_##]) 이 그대로 fallback.\n        if (document.body && document.body.id === 'tt-body-index') {\n            document.querySelectorAll('.post-item:nth-child(-n+2) .post-link').forEach(function (link) {\n                var summaryEl = link.querySelector('.post-summary');\n                if (!summaryEl) return;\n                var href = link.getAttribute('href');\n                if (!href) return;\n                fetch(href, { credentials: 'same-origin' })\n                    .then(function (res) { return res.ok ? res.text() : null; })\n                    .then(function (html) {\n                        if (!html) return;\n                        var doc = new DOMParser().parseFromString(html, 'text/html');\n                        var sub = doc.querySelector('.post-body .post-subtitle');\n                        if (sub && sub.textContent.trim()) {\n                            summaryEl.textContent = sub.textContent.trim();\n                            summaryEl.classList.add('post-summary--from-subtitle');\n                        }\n                    })\n                    .catch(function () { /* 자동 요약 유지 */ });\n            });\n        }\n\n        // 홈 hero 의 프로젝트 chip: /tag 페이지를 fetch 해 모든 태그를 자동 렌더링.\n        // 실패하면 skin.html 의 정적 chip(#trypto) 이 그대로 남아 fallback 역할.\n        if (document.body && document.body.id === 'tt-body-index') {\n            var projects = document.querySelector('.hero-projects');\n            if (projects) {\n                fetch('[##_blog_link_##]tag', { credentials: 'same-origin' })\n                    .then(function (res) { return res.ok ? res.text() : null; })\n                    .then(function (html) {\n                        if (!html) return;\n                        var doc = new DOMParser().parseFromString(html, 'text/html');\n                        var items = doc.querySelectorAll('.tag-cloud-item');\n                        if (!items.length) return;\n                        var frag = document.createDocumentFragment();\n                        items.forEach(function (item) {\n                            var nameEl = item.querySelector('.tag-cloud-name');\n                            var name = (nameEl ? nameEl.textContent : '').trim().replace(/^#/, '');\n                            var href = item.getAttribute('href');\n                            if (!name || !href) return;\n                            var a = document.createElement('a');\n                            a.href = href;\n                            a.className = 'project-tag';\n                            a.textContent = '#' + name;\n                            frag.appendChild(a);\n                        });\n                        if (!frag.childNodes.length) return;\n                        projects.querySelectorAll('.project-tag').forEach(function (el) { el.remove(); });\n                        projects.appendChild(frag);\n                    })\n                    .catch(function () { /* 정적 fallback 유지 */ });\n            }\n        }\n    })();\n</script>\n\n</body>\n</html>\n"
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <title>[##_page_title_##]</title>
+    <meta name="title" content="[##_page_title_##] :: [##_title_##]" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="[##_desc_##]" />
+    <link rel="alternate" type="application/rss+xml" title="[##_title_##]" href="[##_rss_url_##]" />
+    <link rel="stylesheet" type="text/css" href="./style.css" />
+</head>
+
+<body id="[##_body_id_##]">
+
+<s_t3>
+
+<a class="skip-link" href="#main">본문 바로가기</a>
+
+<header class="site-header">
+    <div class="container header-inner">
+        <h1 class="site-title"><a href="[##_blog_link_##]">[##_title_##]</a></h1>
+
+        <nav class="nav" aria-label="주 메뉴">
+            [##_blog_menu_##]
+        </nav>
+
+        <form class="search" action="[##_blog_link_##]search" method="get" role="search">
+            <input type="text" name="search" placeholder="Search" aria-label="검색">
+        </form>
+    </div>
+</header>
+
+[##_revenue_list_upper_##]
+
+<main id="main" class="main">
+    <div class="container">
+
+        <!-- 모든 글 리스트 페이지: 인덱스 / 카테고리 / 검색 / 태그 / 아카이브 -->
+        <s_list>
+            <section class="page-head">
+                <h1 class="page-title">
+                    <em>[##_list_conform_##]</em>
+                    <span class="page-title-count">[##_list_count_##]</span>
+                </h1>
+            </section>
+
+            <ul class="post-list">
+                <s_list_rep>
+                    <li class="post-item">
+                        <a href="[##_list_rep_link_##]" class="post-link">
+                            <time class="post-date">[##_list_rep_regdate_##]</time>
+                            <span class="post-category">[##_list_rep_category_##]</span>
+                            <h3 class="post-title">[##_list_rep_title_##]</h3>
+                        </a>
+                    </li>
+                </s_list_rep>
+            </ul>
+
+            <s_list_empty>
+                <div class="empty-list">
+                    <p>해당하는 글이 없습니다.</p>
+                </div>
+            </s_list_empty>
+        </s_list>
+
+        <!-- 글 단독 페이지 (permalink) -->
+        <s_article_rep>
+            <s_permalink_article_rep>
+                <article class="post">
+                    <header class="post-header">
+                        <p class="post-meta">
+                            <span class="post-meta-category">[##_article_rep_category_##]</span>
+                            <span class="post-meta-sep" aria-hidden="true">·</span>
+                            <time class="post-meta-date">[##_article_rep_date_##]</time>
+                            <span class="post-meta-sep" aria-hidden="true">·</span>
+                            <span class="post-meta-author">[##_article_rep_author_##]</span>
+                        </p>
+                        <h1 class="post-h1">[##_article_rep_title_##]</h1>
+                    </header>
+
+                    <div class="post-body" id="article-view">
+                        [##_article_rep_desc_##]
+                    </div>
+
+                    <footer class="post-footer">
+                        <s_tag_label>
+                            <div class="post-tags">[##_tag_label_rep_##]</div>
+                        </s_tag_label>
+
+                        <div class="post-page">
+                            <s_article_prev>
+                                <a href="[##_article_prev_link_##]" class="post-page-link post-page-prev">
+                                    <span class="post-page-label">← 이전글</span>
+                                    <strong>[##_article_prev_title_##]</strong>
+                                </a>
+                            </s_article_prev>
+                            <s_article_next>
+                                <a href="[##_article_next_link_##]" class="post-page-link post-page-next">
+                                    <span class="post-page-label">다음글 →</span>
+                                    <strong>[##_article_next_title_##]</strong>
+                                </a>
+                            </s_article_next>
+                        </div>
+                    </footer>
+
+                    <div class="article-reply">
+                        <s_rp>
+                            [##_comment_group_##]
+                        </s_rp>
+                    </div>
+                </article>
+            </s_permalink_article_rep>
+        </s_article_rep>
+
+        <!-- 보호글 -->
+        <s_article_protected>
+            <s_permalink_article_rep>
+                <article class="post post-protected">
+                    <header class="post-header">
+                        <p class="post-meta">
+                            <span class="post-meta-category">[##_article_rep_category_##]</span>
+                            <span class="post-meta-sep" aria-hidden="true">·</span>
+                            <time class="post-meta-date">[##_article_rep_date_##]</time>
+                        </p>
+                        <h1 class="post-h1">[##_article_rep_title_##]</h1>
+                    </header>
+
+                    <div class="post-body">
+                        <div class="protected">
+                            <p class="protected-text">보호된 글입니다. 비밀번호를 입력하세요.</p>
+                            <form class="protected-form" onsubmit="[##_article_dissolve_##]">
+                                <input type="password" id="[##_article_password_##]" name="[##_article_password_##]" placeholder="비밀번호" />
+                                <button type="submit">확인</button>
+                            </form>
+                        </div>
+                    </div>
+                </article>
+            </s_permalink_article_rep>
+        </s_article_protected>
+
+        <!-- 공지글 -->
+        <s_notice_rep>
+            <s_permalink_article_rep>
+                <article class="post">
+                    <header class="post-header">
+                        <p class="post-meta">
+                            <span class="post-meta-category">Notice</span>
+                            <span class="post-meta-sep" aria-hidden="true">·</span>
+                            <time class="post-meta-date">[##_notice_rep_date_##]</time>
+                        </p>
+                        <h1 class="post-h1">[##_notice_rep_title_##]</h1>
+                    </header>
+                    <div class="post-body" id="article-view">[##_notice_rep_desc_##]</div>
+                </article>
+            </s_permalink_article_rep>
+        </s_notice_rep>
+
+        <!-- 페이지 (소개 등) -->
+        <s_page_rep>
+            <s_permalink_article_rep>
+                <article class="post">
+                    <header class="post-header">
+                        <p class="post-meta">
+                            <time class="post-meta-date">[##_article_rep_date_##]</time>
+                        </p>
+                        <h1 class="post-h1">[##_article_rep_title_##]</h1>
+                    </header>
+                    <div class="post-body" id="article-view">[##_article_rep_desc_##]</div>
+                </article>
+            </s_permalink_article_rep>
+        </s_page_rep>
+
+        <!-- 태그 페이지 -->
+        <s_tag>
+            <section class="page-head">
+                <p class="eyebrow">Tags</p>
+                <h1 class="page-title">전체 태그</h1>
+            </section>
+            <div class="tag-cloud">
+                <s_tag_rep>
+                    <a href="[##_tag_link_##]" class="tag-cloud-item [##_tag_class_##]">
+                        <span class="tag-cloud-name">#[##_tag_name_##]</span>
+                    </a>
+                </s_tag_rep>
+            </div>
+        </s_tag>
+
+        <!-- 방명록 -->
+        <s_guest>
+            <section class="page-head">
+                <p class="eyebrow">Guestbook</p>
+                <h1 class="page-title">방명록</h1>
+            </section>
+            <div class="article-reply">
+                [##_guestbook_group_##]
+            </div>
+        </s_guest>
+
+        <!-- 페이징 -->
+        <s_paging>
+            <nav class="paging" aria-label="페이지 이동">
+                <a [##_prev_page_##] class="paging-link paging-prev [##_no_more_prev_##]">← Prev</a>
+                <ul class="paging-nums">
+                    <s_paging_rep>
+                        <li><a [##_paging_rep_link_##] class="paging-num">[##_paging_rep_link_num_##]</a></li>
+                    </s_paging_rep>
+                </ul>
+                <a [##_next_page_##] class="paging-link paging-next [##_no_more_next_##]">Next →</a>
+            </nav>
+        </s_paging>
+
+        <!-- 사이드바: 관리자에서 추가한 모듈 -->
+        <s_sidebar>
+            <aside class="sidebar">
+                <s_sidebar_element>
+                    <div class="sidebar-module">[##_sidebar_element_##]</div>
+                </s_sidebar_element>
+            </aside>
+        </s_sidebar>
+
+    </div>
+</main>
+
+[##_revenue_list_lower_##]
+
+<footer class="site-footer">
+    <div class="container footer-inner">
+        <p class="footer-copy">© [##_title_##]</p>
+        <p class="footer-meta">
+            <a href="[##_rss_url_##]">RSS</a>
+            <span aria-hidden="true">·</span>
+            <a href="https://www.tistory.com" target="_blank" rel="noopener">Tistory</a>
+        </p>
+    </div>
+</footer>
+
+</s_t3>
+
+</body>
+</html>
