@@ -23,6 +23,9 @@ CLAUDE.md 는 얇은 인덱스. 실제 정보는 아래가 정답:
 | `docs/catalog.md` | 스킨 치환자 1차 카탈로그 (`tistory://substitutions` 리소스 source) |
 | `docs/samples/` | 실측 req/resp 본문 (`apply-skin-put-body.json`, `publish-post-body.json`, `upload-image-response.json` 등). 도구 구현 시 fixture |
 | `templates/default/` | Odyssey 스킨 원본 통째 복사본 — 미정제 (raw) |
+| `.claude/skills/todo-plan/` | `/todo-plan` — plan.md 읽고 다음 묶음을 todo.md 에 append (병렬 메타 포함) |
+| `.claude/skills/todo-run/` | `/todo-run` — todo.md 미체크 항목을 `scoped-implementer` 에게 직렬 dispatch |
+| `.claude/agents/scoped-implementer.md` | 워커 서브에이전트. owns 안 파일만 수정, 컨벤션대로 커밋, plan.md 보강 |
 
 새 endpoint 발견·실측 변경 → `docs/api.md`. 도구 추가/축소·설계 결정 변경 → `plan.md`. 작업 진행·완료·신규 task → `todo.md`.
 
