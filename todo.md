@@ -44,7 +44,7 @@
 - [x] **tool: tistory_upload_image**
   - owns: `src/tools/upload_image.ts`
   - depends: api.ts
-- [ ] **tool: tistory_apply_skin / apply_skin_settings**
+- [x] **tool: tistory_apply_skin / apply_skin_settings**
   - owns: `src/tools/apply_skin.ts`, `src/tools/apply_skin_settings.ts`
   - depends: api.ts
 - [ ] **tool: tistory_fetch_meta**
