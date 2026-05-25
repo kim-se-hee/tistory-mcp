@@ -1,0 +1,36 @@
+# 안전망. package.json 의 `files` 화이트리스트가 1차 게이트지만,
+# files 가 빠지거나 잘못 수정됐을 때 민감/불필요 파일이 새는 걸 방지.
+
+# 소스/빌드 설정
+src/
+tsconfig.json
+*.tsbuildinfo
+
+# 문서/설계
+docs/
+plan.md
+todo.md
+
+# Claude / 워크플로우 메타
+.claude/
+.githooks/
+CLAUDE.md
+
+# Git / 에디터
+.git/
+.gitignore
+.gitattributes
+.vscode/
+.idea/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 로컬 환경
+.env
+.env.*
+.DS_Store
+Thumbs.db
