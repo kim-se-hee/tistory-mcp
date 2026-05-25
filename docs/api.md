@@ -63,19 +63,27 @@ const config = JSON.parse(html.match(/window\.Config\s*=\s*({.+?});/s)[1]);
 
 ### 2.2 노출 필드 (`Config.blog`)
 
-| 필드 | 예시 |
+실측 (2026-05, saree98.tistory.com) 기준 top-level 키:
+
+| 필드 | 예시 / 비고 |
 |---|---|
-| `blogId` | `7297762` |
-| `user.userId` | `6837615` |
-| `user.role` | `"owner"` |
-| `user.name` | `"ksh98"` |
-| `user.loginId` | (계정 ID) |
+| `domain` | `"saree98.tistory.com"` |
+| `customDomain` | 커스텀 도메인 (없으면 `""`) |
+| `title` | 블로그 제목 |
+| `manageUrl` | admin 진입 URL |
+| `image` | 대표 이미지 |
 | `categories` | 전체 트리 + categoryId |
-| `blogSettings` | `entriesOnPage`, `language`, `timezone`, `allowWriteOnGuestbook`, `useCommentRecognition`, ... |
-| `activePlugins` | `["DaumShow", "SyntaxHighlight", ...]` |
+| `blogSettings` | `blogId` (string), `entriesOnPage`, `language`, `timezone`, `allowWriteOnGuestbook`, `useCommentRecognition`, ... |
+| `activePlugins` | active 플러그인 name 배열 (예: `["DaumShow", "SyntaxHighlight", ...]`) |
+| `plugins` | 22개 전체 플러그인 메타 (name/title/active 등) |
 | `skinInfo` | name, title, version, license, variables, default, cover, liststyle |
 | `created` | `"2024-08-29"` |
-| `cclCommercial`, `cclDerive`, `useMobile` | 메타 토글 |
+| `visibility`, `visibilityType` | 노출 enum |
+| `useMobileSkin`, `useMobile` | 모바일 스킨 토글 |
+| `cclCommercial`, `cclDerive`, `targetNotification`, `uselessMargin` | 메타 토글 |
+
+**주의 — blogId 는 top-level 이 아니라 `blogSettings.blogId` (string)** 에 박힘. `api.ts:getBlogId(blog)` 헬퍼로 number 변환.
+이전(2024 초기) 응답에는 top-level `blogId: number` 와 `user: { userId, role, name, loginId }` 가 있었으나 현재는 제거됨. 유저 정보는 `/manage/setting/blog.json` 등 별도 endpoint 로 이동.
 
 ---
 
