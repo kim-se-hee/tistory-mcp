@@ -47,7 +47,7 @@
 - [x] **tool: tistory_apply_skin / apply_skin_settings**
   - owns: `src/tools/apply_skin.ts`, `src/tools/apply_skin_settings.ts`
   - depends: api.ts
-- [ ] **tool: tistory_fetch_meta**
+- [x] **tool: tistory_fetch_meta**
   - owns: `src/tools/fetch_meta.ts`
   - depends: api.ts, scraper.ts
 
