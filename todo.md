@@ -11,23 +11,27 @@
 
 ### 인프라 (foundation — 선행)
 
-- [ ] **foundation** — deps + `src/index.ts` MCP stdio skeleton + tsconfig 확정
+- [x] **foundation** — deps + `src/index.ts` MCP stdio skeleton + tsconfig 확정
   - owns: `package.json`, `package-lock.json`, `src/index.ts`, `tsconfig.json`
   - 모든 후속 task 의 선행
+- [x] **deps-bump** — 런타임 의존성 보강 (`playwright` + `keytar` + `cheerio`). browser.ts/scraper.ts 선행
+  - owns: `package.json`, `package-lock.json`
+  - depends: foundation
+  - 사유: foundation 단계에서 빠져있던 핵심 deps. playwright (session_init headed 로그인), keytar (OS keychain storageState 저장), cheerio (scraper HTML 파싱). 설치 시 playwright 브라우저 바이너리는 `npx playwright install chromium` 별도 (README 보강은 별 todo).
 
 ### 코어 모듈 (foundation 후 병렬 가능)
 
 - [x] **catalog.ts** — 치환자 catalog (`docs/catalog.md` TS 변환 + raw HTML 보강)
   - owns: `src/tistory/catalog.ts`
-- [ ] **api.ts** — 11 endpoint cookie-auth fetch 래퍼 (스킨 5 + 글 5 + 메타 1)
+- [x] **api.ts** — 11 endpoint cookie-auth fetch 래퍼 (스킨 5 + 글 5 + 메타 1)
   - owns: `src/tistory/api.ts`
   - depends: foundation
-- [ ] **browser.ts** — Playwright session_init 전용. storageState → keytar 암호화 디스크 저장
+- [x] **browser.ts** — Playwright session_init 전용. storageState → keytar 암호화 디스크 저장
   - owns: `src/tistory/browser.ts`
-  - depends: foundation
-- [ ] **scraper.ts** — `window.Config.blog` + 공개 페이지 cheerio 파서
+  - depends: foundation, deps-bump
+- [x] **scraper.ts** — `window.Config.blog` + 공개 페이지 cheerio 파서
   - owns: `src/tistory/scraper.ts`
-  - depends: foundation
+  - depends: foundation, deps-bump
 
 ### 도구 (코어 모듈 후)
 
@@ -49,13 +53,13 @@
 
 ### 리소스 (코어 모듈과 병렬 가능)
 
-- [ ] **resources** — `tistory://substitutions` / `page-types` / `gotchas` / `template-default` 4종
+- [x] **resources** — `tistory://substitutions` / `page-types` / `gotchas` / `template-default` 4종
   - owns: `src/resources/`
   - depends: foundation (substitutions 는 catalog.ts 의존)
 
 ### 보조
 
-- [ ] **templates/default 정제** — Odyssey 위젯/커버/전용 CSS 제거 + preview 이미지 4종 (`preview.gif`/`preview256.jpg`/`preview560.jpg`/`preview1600.jpg`) 추가
+- [x] **templates/default 정제** — Odyssey 위젯/커버/전용 CSS 제거 + preview 이미지 4종 (`preview.gif`/`preview256.jpg`/`preview560.jpg`/`preview1600.jpg`) 추가
   - owns: `templates/default/`
 - [ ] **`npx` 배포 준비** — `package.json` bin + README
 
