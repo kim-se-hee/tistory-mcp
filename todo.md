@@ -94,6 +94,6 @@
 - [x] **npm publish 준비** — `package.json` `files` 화이트리스트 / `.npmignore` / `npm publish --dry-run` 으로 tarball 검증 / `version` 0.1.0 책정. `dist/` + `templates/` + `README.md` + `LICENSE` 만 포함되도록 좁히고 `src/` `docs/` `plan.md` `todo.md` `.claude/` 등 제외. publish 자체는 사용자 수동 (`npm publish --access public`) — 자동화하지 않음
   - owns: `package.json`, `.npmignore`
   - depends: foundation
-- [ ] **추가 template** — magazine, gallery
+- [x] **추가 template** — magazine, gallery
   - owns: `templates/magazine/`, `templates/gallery/`
   - depends: foundation
