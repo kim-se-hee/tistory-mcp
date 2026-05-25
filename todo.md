@@ -61,7 +61,7 @@
 
 - [x] **templates/default 정제** — Odyssey 위젯/커버/전용 CSS 제거 + preview 이미지 4종 (`preview.gif`/`preview256.jpg`/`preview560.jpg`/`preview1600.jpg`) 추가
   - owns: `templates/default/`
-- [ ] **`npx` 배포 준비** — `package.json` bin + README
+- [x] **`npx` 배포 준비** — `package.json` bin + README
 
 ---
 
