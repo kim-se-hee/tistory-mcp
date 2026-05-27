@@ -1,15 +1,15 @@
 /**
- * MCP tools — 13종 (plan.md §2 Tools).
+ * MCP tools — 14종 (plan.md §2 Tools).
  *
  * 카테고리:
  *  - 세션:   session_init
  *  - 글:     publish_post / update_post / delete_post / fetch_post / search_posts
  *  - 자산:   upload_image
  *  - 스킨:   apply_skin / apply_skin_settings / preview_skin / skin_validate
- *  - 메타:   fetch_meta
+ *  - 메타:   fetch_meta / categories_update
  *  - 보조:   screenshot
  *
- * `src/index.ts` 에서 `registerTools(server)` 한 줄 호출하면 13개 다 붙는다.
+ * `src/index.ts` 에서 `registerTools(server)` 한 줄 호출하면 14개 다 붙는다.
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -27,6 +27,7 @@ import { registerPreviewSkin } from "./preview_skin.js";
 import { registerSkinValidate } from "./skin_validate.js";
 import { registerFetchMeta } from "./fetch_meta.js";
 import { registerScreenshot } from "./screenshot.js";
+import { registerCategoriesUpdate } from "./categories_update.js";
 
 export function registerTools(server: McpServer): void {
   registerSessionInit(server);
@@ -42,4 +43,5 @@ export function registerTools(server: McpServer): void {
   registerSkinValidate(server);
   registerFetchMeta(server);
   registerScreenshot(server);
+  registerCategoriesUpdate(server);
 }
