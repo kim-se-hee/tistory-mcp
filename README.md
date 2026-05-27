@@ -2,7 +2,19 @@
 
 티스토리 블로그 관리자 동작을 MCP 도구로 노출하는 stdio TS/Node 서버.
 
-블로그 주인이 LLM 에게 "글 올려" / "스킨 이거 적용해" 라고 말하면 끝나도록 만드는 것이 목표. 직접 써보면서 반복됐던 6가지 마찰(치환자 추측, 편집 루프 1분+, 미리보기 부재, 함정 학습 비용, 글쓰기 동선, 메타 확인)을 도구 14개로 환원한다.
+블로그 주인이 LLM 에게 "글 올려" / "스킨 이거 적용해" 라고 말하면 끝나도록 만드는 것이 목표.
+
+## 할 수 있는 일
+
+LLM 에게 자연어로 말하면 끝:
+
+- **"오늘 작성한 마크다운으로 비공개 글 올려줘"** → `tistory_publish_post`
+- **"3번 글 공개로 바꾸고 카테고리를 '리뷰' 로"** → `tistory_update_post`
+- **"이 스킨 코드 적용하고 미리보기 보여줘"** → `tistory_apply_skin` + `tistory_preview_skin` + `tistory_screenshot`
+- **"내 글 중 '리액트' 들어간 거 다 찾아"** → `tistory_search_posts`
+- **"카테고리 트리를 이렇게 재정렬해줘"** → `tistory_categories_update`
+
+블로그 운영하면서 반복되던 6가지 마찰 — 치환자 추측, 편집 루프 1분+, 미리보기 부재, 함정 학습 비용, 글쓰기 동선, 메타 확인 — 을 도구 14개로 환원한 결과물.
 
 설계 전체는 [`plan.md`](plan.md), endpoint 실측은 [`docs/api.md`](docs/api.md) 참조.
 
@@ -62,11 +74,22 @@ npm run build      # tsc → dist/index.js
 
 ## 노출되는 것
 
-- **Tools 14개** — `tistory_session_init` / `tistory_publish_post` / `tistory_update_post` / `tistory_delete_post` / `tistory_upload_image` / `tistory_apply_skin` / `tistory_apply_skin_settings` / `tistory_fetch_meta` / `tistory_preview_skin` / `tistory_screenshot` / `tistory_fetch_post` / `skin_validate` / `tistory_search_posts` / `tistory_categories_update`
-- **Resources 4종** — `tistory://substitutions` (치환자 카탈로그) / `tistory://page-types` (`tt-body-*` 매핑) / `tistory://gotchas` (알려진 함정) / `tistory://template-default` (동작 스킨 골격)
-- **Prompts 3종** — `tistory/new_skin` / `tistory/diagnose_render` / `tistory/iterate_loop`
+**Tools 14개** — 카테고리별:
 
-각 도구의 입력/동작/함정은 `plan.md §2` 와 `docs/api.md` 가 정답.
+| 카테고리 | 도구 |
+|---|---|
+| 세션 | `tistory_session_init` |
+| 글 | `tistory_publish_post` · `tistory_update_post` · `tistory_delete_post` · `tistory_fetch_post` · `tistory_search_posts` |
+| 자산 | `tistory_upload_image` |
+| 스킨 | `tistory_apply_skin` · `tistory_apply_skin_settings` · `tistory_preview_skin` · `skin_validate` |
+| 메타 | `tistory_fetch_meta` · `tistory_categories_update` |
+| 보조 | `tistory_screenshot` |
+
+**Resources 4종** — `tistory://substitutions` (치환자 카탈로그) / `tistory://page-types` (`tt-body-*` 매핑) / `tistory://gotchas` (알려진 함정) / `tistory://template-default` (동작 스킨 골격)
+
+**Prompts 3종** — `tistory/new_skin` / `tistory/diagnose_render` / `tistory/iterate_loop`
+
+각 도구의 입력/동작/함정은 [`plan.md §2`](plan.md) 와 [`docs/api.md`](docs/api.md) 가 정답.
 
 ## 라이선스
 
