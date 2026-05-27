@@ -99,3 +99,21 @@
   - depends: foundation
 - [x] **src/index.ts wiring 수복 + 0.1.1 재발행** — 0.1.0 publish 직후 스모크에서 발견. 모든 도구·리소스·프롬프트 모듈은 만들었지만 `src/index.ts` 가 foundation 스켈레톤 (ping 1개) 그대로라 `npx -y tistory-mcp@0.1.0` 이 빈 서버를 띄움. `src/tools/index.ts` barrel 신규 + `registerTools`/`registerResources`/`registerPrompts` 호출 + 버전 0.1.1. publish 자체는 사용자 수동
   - owns: `src/index.ts`, `src/tools/index.ts`, `package.json`
+
+---
+
+## Phase 4 — 카테고리 CRUD
+
+`docs/api.md §7.7` 에 메모만 있던 항목을 도구화. 인터페이스는 트리 batch 1개 (`tistory_categories_update`) — UI 가 batch 모드라 native 매칭. **실측 결과 cookie-only fetch 로 구현 가능** (`PUT /manage/category.json`, docs §3.6) — 함정 1 정책 유지.
+
+- [x] **실측: `/manage/category` batch save XHR reverse-engineer** — Playwright 자동 시나리오 (추가 → 이름변경 → 삭제) + 네트워크 캡처로 PUT body 3종 확정. **결과 = `PUT /manage/category.json` body `{ rootLabel, delete[], append[], update[] }`** (delete=id 정수 배열, append=`id:-1` 객체, update=`label`에 이전 이름 보존, append 시 update 에 같은 객체 동시 등장). cookie-only fetch 로 재현 검증 완료. `docs/api.md §3.6` 신설. 한도 500/글 0개 삭제 가드는 UI 측 메모만 (fetch 직접 시도 미실측). visibility 토글/이동(드래그)/하위 카테고리는 별도 task 로 분리. 캡처 스크립트: `scripts/capture-category-xhr.ts`
+  - owns: `docs/api.md`
+- [x] **결정: 구현 경로** — fetch 가능 확정 → (a) 경로로 자동 결정. CLAUDE.md 함정 1 정책 유지 (Playwright 는 `session_init` / `screenshot` 두 곳만). api.ts 가 12 endpoint 로 늘어남
+- [ ] **tool: tistory_categories_update** — 트리 batch. 입력 `tree: { id?, name, visibility?, children[] }[]` 받아 현재 트리 (`/manage/category.json` GET) 와 diff → `PUT /manage/category.json` 한 방. update 객체는 `label` 필드에 변경 전 이름 보존 (실측 그대로). append 객체는 `update` 배열에도 동시 포함 (UI 흐름 모방). 글 있는 카테고리 삭제 사전 검증 reject (entries > 0). 한도 500 검증. 응답 `{ categoryTree }` → 평탄화 반환
+  - owns: `src/tools/categories_update.ts`, `src/tistory/api.ts`
+  - depends: api.ts
+
+### Phase 4 잔여 — 후속 실측 (낮은 우선순위)
+
+- [ ] **실측: 카테고리 visibility 토글 / 하위 카테고리 / 드래그 이동** — `PUT /manage/category.json` body 가 어떻게 표현되는지. 위 핵심 실측의 같은 자동 모드 스크립트 (`scripts/capture-category-xhr.ts`) 확장으로 가능. 결과는 `docs/api.md §3.6` 보강
+  - owns: `docs/api.md`

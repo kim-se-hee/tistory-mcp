@@ -95,7 +95,7 @@ const config = JSON.parse(html.match(/window\.Config\s*=\s*({.+?});/s)[1]);
 
 | URL | 내용 |
 |---|---|
-| `/manage/category.json` | 카테고리 트리, **viewChannels (홈주제 enum)**, settingSelected, settingOptionList |
+| `/manage/category.json` | GET = 카테고리 트리 (§3.3), **viewChannels (홈주제 enum)**, settingSelected, settingOptionList. **PUT = batch CRUD (§3.6)** |
 | `/manage/posts.json` | 글 목록 (풍부 메타 — §3.2) |
 | `/manage/pages.json` | 정적 페이지 목록 |
 | `/manage/notices.json` | 공지 |
@@ -171,6 +171,70 @@ publish 인자 검증의 source of truth:
 ### 3.5 태그는 별도 API 없음
 
 태그 관리 페이지 자체가 없음. 태그는 글에 인라인 부착 (§4.2 의 `tag` 필드) 만 source. 공개 페이지에서는 `/tag` (태그 클라우드) 와 `/tag/{name}` 으로 조회.
+
+### 3.6 카테고리 CRUD — `PUT /manage/category.json` (batch)
+
+★ **`/manage/category` 페이지의 `변경사항 저장` 버튼이 트리거하는 batch save endpoint.** 추가/이름변경/삭제/이동 모두 같은 PUT 한 번에 처리. cookie-only fetch 로 도구 구현 가능 (Playwright 불필요 — 함정 1 유지).
+
+| Method/URL | Body | Response |
+|---|---|---|
+| `PUT /manage/category.json` | `{ rootLabel, delete[], append[], update[] }` (Content-Type: application/json) | `{ categoryTree: [...] }` — 갱신된 전체 트리 |
+
+**Body 3개 배열의 시맨틱 (2026-05-27 실측):**
+
+- **`delete: number[]`** — 삭제할 카테고리 ID **정수 배열만**. 객체 형태로 보내면 500.
+- **`append: object[]`** — 신규 카테고리. `id: -1`, `isNew: true`, `updatedData: true`. 필드 셋:
+  ```json
+  {
+    "id": -1,
+    "name": "새 카테고리",
+    "children": [],
+    "depth": 1,
+    "opened": true,
+    "priority": 2,          // 현재 카테고리 개수 (0-based 끝 + 1)
+    "visibility": 20,       // §4.3 visibility enum 과 동일 (0=비공개/15=보호/20=공개)
+    "parent": 0,            // 0 = 루트. 하위 카테고리는 부모 id
+    "viewChannel": null,    // 홈주제 id (string) 또는 null
+    "entries": 0,
+    "categoryInfo": {},
+    "isNew": true,
+    "updatedData": true
+  }
+  ```
+- **`update: object[]`** — 수정할 카테고리. id 는 실제 값. **`label` 필드에 변경 전 이전 이름을 보존해 보냄** (서버 식별/충돌 검증 용으로 추정). `updatedData: false`. 필드 셋:
+  ```json
+  {
+    "id": 1363523,
+    "name": "새 이름",
+    "label": "이전 이름",   // ★ 변경 전 이름. update 시에만 다름
+    "priority": 2,
+    "entries": 0,
+    "visibility": 20,
+    "viewChannel": null,
+    "children": [],
+    "leaf": true,
+    "categoryInfo": { "liststyle": "", "image": "", "description": "" },
+    "depth": 1,
+    "parent": 0,
+    "opened": true,
+    "updatedData": false
+  }
+  ```
+
+**관찰 — append 시 update 에 같은 객체 동시 등장:** UI 가 신규 카테고리 추가 시 `append` 와 `update` 두 배열에 똑같은 객체를 박는다. 이유 불명이지만 도구 구현 시 동일하게 보내는 것이 안전 (UI 흐름 모방).
+
+**함정:**
+- `delete` 에 객체 보내면 500 (`{"data":null,"message":"일시적인 문제로 처리할 수 없습니다..."}`). 반드시 ID 정수 배열.
+- DELETE method 자체는 405 (`/manage/category/{id}.json`, `/manage/category.json?id=` 등 다 막힘). PUT 만 받음.
+- 응답 키가 GET 과 다름: GET 은 `categories`, PUT 응답은 `categoryTree` — 둘 다 같은 트리 구조지만 키 이름 주의.
+- 글이 있는 카테고리 삭제는 UI 에서 disabled (실측 — entries > 0 카테고리 row 의 `a.btn_post.삭제` 에 `.disabled` 클래스). fetch 로는 검증 없이 보낼 수 있지만 동작 미실측 — 도구에서 사전 검증 권장.
+- 카테고리 한도 500 개 (`.count_total` 의 `/ 500`).
+
+**UI 자동화 함정 (도구는 fetch-only 라 무관, 참고용):**
+- 카테고리 row 의 `추가/수정/관리/이동/삭제` 액션은 `hover` 시에만 visible (`a.btn_post`). text content 매칭.
+- 새 카테고리 input 박스 (`form.edit_item`) 의 commit 은 Enter/blur 가 아닌 `button.btn_default` (`확인`) 클릭이 트리거. 빈 입력에선 disabled.
+- `변경사항 저장` 클래스: 비활성 = `btn_save btn_off` (`disabled` attr), 활성 = `btn_save`, 클릭 직후 = `btn_save btn_doing`. **delete 클릭 후 enable window 가 매우 짧음** (수십 ms) — 자동화 시 polling + 즉시 click 필요.
+- `set_order` div 가 pointer events 가로챔 (§7.6 의 `스킨 등록` 버튼과 동일 패턴) — Playwright `click({force:true})` 또는 JS `.click()` 필요.
 
 ---
 
@@ -550,7 +614,7 @@ Monaco 언어 `tistory-skin-html` 토큰:
 
 ### 7.7 카테고리 / 메뉴 인라인 UI
 
-API 가 닫혀있는 일부 동작 (카테고리 생성/이동, 메뉴 순서 변경) 은 인라인 UI 만 — Phase 3 도구.
+★ **카테고리 CRUD 는 `PUT /manage/category.json` batch endpoint 로 fetch 가능** (§3.6 — 2026-05-27 실측 확정, UI XHR reverse-engineer). 아래 인라인 UI 메모는 도구 구현엔 무관 — 참고용. 메뉴 순서 변경은 미실측.
 
 카테고리 row (`/manage/category`) 액션 5종 (hover 시만 visible):
 
