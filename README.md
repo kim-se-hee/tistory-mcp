@@ -1,95 +1,61 @@
 # tistory-mcp
 
-티스토리 블로그 관리자 동작을 MCP 도구로 노출하는 stdio TS/Node 서버.
+티스토리 블로그 운영을 자연어로 끝내는 MCP 서버.
 
-블로그 주인이 LLM 에게 "글 올려" / "스킨 이거 적용해" 라고 말하면 끝나도록 만드는 것이 목표.
+관리자 페이지를 열고, 마크다운 ↔ 에디터를 오가고, 스킨 코드 박아놓고 미리보기 만들러 새 탭 띄우고 — 이 번거로운 동선 전체를 LLM 한 마디로 처리하는 게 목표입니다.
 
-## 할 수 있는 일
+## 예시
 
-LLM 에게 자연어로 말하면 끝:
+이런 식으로 말하면 됩니다. 어떤 도구가 호출되는지는 LLM 이 알아서 고르니까 사용자는 신경 쓸 필요 없습니다.
 
-- **"오늘 작성한 마크다운으로 비공개 글 올려줘"** → `tistory_publish_post`
-- **"3번 글 공개로 바꾸고 카테고리를 '리뷰' 로"** → `tistory_update_post`
-- **"이 스킨 코드 적용하고 미리보기 보여줘"** → `tistory_apply_skin` + `tistory_preview_skin` + `tistory_screenshot`
-- **"내 글 중 '리액트' 들어간 거 다 찾아"** → `tistory_search_posts`
-- **"카테고리 트리를 이렇게 재정렬해줘"** → `tistory_categories_update`
+- **"내 블로그에 맞는 깔끔한 커스텀 스킨 만들어서 적용해줘"**
+- **"이 글에 목차 자동으로 달아서 다시 올려"**
+- **"3번 글 비공개로 바꾸고 카테고리를 '리뷰' 로 옮겨"**
+- **"제목에 '리액트' 들어간 글 다 찾아줘"**
+- **"메인 페이지 지금 어떻게 보이는지 스크린샷 보여줘"**
 
-블로그 운영하면서 반복되던 6가지 마찰 — 치환자 추측, 편집 루프 1분+, 미리보기 부재, 함정 학습 비용, 글쓰기 동선, 메타 확인 — 을 도구 14개로 환원한 결과물.
+## 시작하기
 
-설계 전체는 [`plan.md`](plan.md), endpoint 실측은 [`docs/api.md`](docs/api.md) 참조.
-
-## 빠른 시작
-
-```sh
-# MCP 클라이언트가 알아서 실행 — 별도 설치 불필요
-npx -y tistory-mcp
-```
-
-설치 시 `postinstall` 이 Chromium 바이너리를 OS 표준 위치 (`~/.cache/ms-playwright/` 등) 에 자동으로 받는다. 네트워크 차단 환경에서 실패하면 수동으로 `npx playwright install chromium` 한 번 돌리면 된다.
-
-Chromium 은 `tistory_session_init` (카카오 OAuth + 2FA 로그인 1회) 과 `tistory_screenshot` (페이지 캡처) 둘만 사용한다. 나머지 12개 도구는 추출된 쿠키 + fetch 라 브라우저가 뜨지 않는다.
-
-## MCP 클라이언트 설정
-
-### Claude Code
+### 1. Claude Code 에 등록
 
 ```sh
 claude mcp add tistory -- npx -y tistory-mcp
 ```
 
-스코프는 기본이 user (모든 프로젝트에서 보임). 프로젝트에만 묶고 팀과 공유하려면 `--scope project` 를 붙여 `.mcp.json` 에 저장.
+처음 실행될 때 필요한 브라우저 (Chromium) 도 함께 자동으로 받아 옵니다 — 별도 설치 명령이 필요 없습니다.
 
-등록 확인:
-```sh
-claude mcp list
-```
+> Claude Desktop 등 다른 stdio MCP 클라이언트를 쓴다면 위 명령을 각자의 `mcpServers` 설정에 풀어 적어주세요.
 
-### Claude Desktop 등 기타 stdio 클라이언트
+### 2. 첫 사용 — 블로그 연결
 
-server 설정 JSON 에 추가:
+Claude 에게 한 번만 이렇게 말합니다:
 
-```json
-{
-  "mcpServers": {
-    "tistory": {
-      "command": "npx",
-      "args": ["-y", "tistory-mcp"]
-    }
-  }
-}
-```
+> "내 티스토리 블로그 `xxx.tistory.com` 연결해줘"
 
-### 첫 실행
+- 헤디드 Chromium 창이 자동으로 뜨고, 카카오 로그인 화면으로 이동합니다
+- 카톡 푸시 (또는 비밀번호 + 2FA) 로 직접 인증을 마치면
+- 인증 쿠키가 OS 자격증명 저장소 (Windows Credential Manager / macOS Keychain / Linux Secret Service) 에 안전하게 보관되고, 창이 닫힙니다
 
-세션이 없는 상태에서 도구를 호출하면 `tistory_session_init` 을 먼저 부르라는 에러가 뜬다. `session_init` 이 헤디드 Chromium 을 띄워 카카오 로그인 (2FA 푸시 승인 포함) 을 받고, `storageState` 를 OS keychain (keytar) 에 저장한다. 이후 모든 도구는 그 쿠키로 동작.
+이후 모든 작업은 이 저장된 쿠키로만 동작합니다. 비밀번호·토큰을 텍스트로 입력할 일은 없고, 자격증명이 본인 PC 밖으로 나갈 일도 없습니다.
 
-## 개발
+### 3. 그 다음부터는
 
-```sh
-npm install
-npm run dev        # tsx src/index.ts
-npm run typecheck  # tsc --noEmit
-npm run build      # tsc → dist/index.js
-```
+원하는 작업을 자연어로 던지면 됩니다.
 
-## 노출되는 것
+## 도구 목록
 
-**Tools 14개** — 카테고리별:
+LLM 이 자동으로 골라 쓰는 도구 14개. 명시적으로 이름을 부를 필요는 없지만, 어떤 일이 가능한지 한눈에 보고 싶다면 아래를 참고하세요.
 
 | 카테고리 | 도구 |
 |---|---|
-| 세션 | `tistory_session_init` |
+| 세션 관리 | `tistory_session_init` |
 | 글 | `tistory_publish_post` · `tistory_update_post` · `tistory_delete_post` · `tistory_fetch_post` · `tistory_search_posts` |
 | 자산 | `tistory_upload_image` |
 | 스킨 | `tistory_apply_skin` · `tistory_apply_skin_settings` · `tistory_preview_skin` · `skin_validate` |
 | 메타 | `tistory_fetch_meta` · `tistory_categories_update` |
 | 보조 | `tistory_screenshot` |
 
-**Resources 4종** — `tistory://substitutions` (치환자 카탈로그) / `tistory://page-types` (`tt-body-*` 매핑) / `tistory://gotchas` (알려진 함정) / `tistory://template-default` (동작 스킨 골격)
-
-**Prompts 3종** — `tistory/new_skin` / `tistory/diagnose_render` / `tistory/iterate_loop`
-
-각 도구의 입력/동작/함정은 [`plan.md §2`](plan.md) 와 [`docs/api.md`](docs/api.md) 가 정답.
+각 도구의 정확한 입력 / 동작 / 주의사항은 [`plan.md`](plan.md) 와 [`docs/api.md`](docs/api.md) 에 정밀하게 정리돼 있습니다.
 
 ## 라이선스
 
