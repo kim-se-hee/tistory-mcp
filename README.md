@@ -2,7 +2,7 @@
 
 티스토리 블로그 관리자 동작을 MCP 도구로 노출하는 stdio TS/Node 서버.
 
-블로그 주인이 LLM 에게 "글 올려" / "스킨 이거 적용해" 라고 말하면 끝나도록 만드는 것이 목표. 직접 써보면서 반복됐던 6가지 마찰(치환자 추측, 편집 루프 1분+, 미리보기 부재, 함정 학습 비용, 글쓰기 동선, 메타 확인)을 도구 13개로 환원한다.
+블로그 주인이 LLM 에게 "글 올려" / "스킨 이거 적용해" 라고 말하면 끝나도록 만드는 것이 목표. 직접 써보면서 반복됐던 6가지 마찰(치환자 추측, 편집 루프 1분+, 미리보기 부재, 함정 학습 비용, 글쓰기 동선, 메타 확인)을 도구 14개로 환원한다.
 
 설계 전체는 [`plan.md`](plan.md), endpoint 실측은 [`docs/api.md`](docs/api.md) 참조.
 
@@ -19,7 +19,22 @@ Chromium 은 `tistory_session_init` (카카오 OAuth + 2FA 로그인 1회) 과 `
 
 ## MCP 클라이언트 설정
 
-Claude Desktop 등 stdio MCP 클라이언트의 server 설정에 추가:
+### Claude Code
+
+```sh
+claude mcp add tistory -- npx -y tistory-mcp
+```
+
+스코프는 기본이 user (모든 프로젝트에서 보임). 프로젝트에만 묶고 팀과 공유하려면 `--scope project` 를 붙여 `.mcp.json` 에 저장.
+
+등록 확인:
+```sh
+claude mcp list
+```
+
+### Claude Desktop 등 기타 stdio 클라이언트
+
+server 설정 JSON 에 추가:
 
 ```json
 {
@@ -31,6 +46,8 @@ Claude Desktop 등 stdio MCP 클라이언트의 server 설정에 추가:
   }
 }
 ```
+
+### 첫 실행
 
 세션이 없는 상태에서 도구를 호출하면 `tistory_session_init` 을 먼저 부르라는 에러가 뜬다. `session_init` 이 헤디드 Chromium 을 띄워 카카오 로그인 (2FA 푸시 승인 포함) 을 받고, `storageState` 를 OS keychain (keytar) 에 저장한다. 이후 모든 도구는 그 쿠키로 동작.
 
