@@ -716,3 +716,143 @@ export async function previewSkin(
   });
   return res.text();
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 카테고리 1: GET/PUT /manage/category.json (batch CRUD)
+// docs/api.md §3.3, §3.6
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `/manage/category.json` GET 응답의 트리 노드. 재귀 구조.
+ * docs/api.md §3.3.
+ *
+ * - `id` — categoryId 정수. 신규는 `-1` (응답엔 안 박힘 — request 전용)
+ * - `name` — 현재 이름
+ * - `label` — 표시용 라벨. PUT update body 에선 **변경 전 이름** 보존 (§3.6)
+ * - `priority` — 같은 부모 안에서의 순서 (0-based)
+ * - `entries` — 카테고리에 속한 글 수. > 0 이면 UI 가 삭제 disable
+ * - `visibility` — 정수 enum (0/15/20, §4.3 와 동일)
+ * - `parent` — 0 = 루트, 아니면 부모 categoryId
+ * - `viewChannel` — 홈주제 id (string) 또는 null
+ * - `depth` — 1 = 루트, 2 = 하위
+ * - `leaf` — children 비었으면 true
+ * - `opened` — UI 펼침 상태 (PUT 시에도 그대로 박는다)
+ * - `categoryInfo` — `{ liststyle, image, description }` (관리 화면용)
+ */
+export interface CategoryNode {
+  id: number;
+  name: string;
+  label: string;
+  priority: number;
+  entries: number;
+  visibility: VisibilityInt;
+  parent: number;
+  viewChannel: string | null;
+  depth: number;
+  leaf: boolean;
+  opened: boolean;
+  categoryInfo: { liststyle?: string; image?: string; description?: string };
+  children: CategoryNode[];
+  /** 알려지지 않은 필드는 통과 (서버가 추가 필드 박을 수 있음). */
+  [key: string]: unknown;
+}
+
+/** `GET /manage/category.json` 응답. docs/api.md §3.3. */
+export interface CategoryGetResponse {
+  /** 루트 라벨 — PUT body 에 그대로 echo 함. */
+  rootLabel: string;
+  categories: CategoryNode[];
+  /** 홈주제 enum (라이프/여행맛집/...). 글 발행 시 `serviceCategoryId` 후보. */
+  viewChannels?: unknown[];
+  settingSelected?: unknown;
+  settingOptionList?: unknown;
+  [key: string]: unknown;
+}
+
+/** `PUT /manage/category.json` 응답. docs/api.md §3.6 (GET 과 키 이름 다름 — `categoryTree`). */
+export interface CategoryPutResponse {
+  categoryTree: CategoryNode[];
+  [key: string]: unknown;
+}
+
+/** `GET /manage/category.json` — 현재 카테고리 트리 + 메타. */
+export async function getCategories(
+  ctx: TistoryContext,
+): Promise<CategoryGetResponse> {
+  return requestJson(ctx, "/manage/category.json");
+}
+
+/**
+ * `PUT /manage/category.json` body — 3-array diff. docs/api.md §3.6.
+ *
+ * **함정:**
+ *   - `delete` 는 **id 정수 배열만**. 객체 보내면 500
+ *   - `append` 는 `id: -1`, `isNew: true`, `updatedData: true` 필드 셋
+ *   - `update` 는 `label` 필드에 **변경 전 이름** 보존, `updatedData: false`
+ *   - UI 흐름 관찰: 신규 추가 시 `append` 와 `update` 두 배열에 같은 객체가 동시 등장 —
+ *     도구 구현도 동일하게 미러링 (서버 검증 정확한 트리거 미실측, safer)
+ */
+export interface CategoryPutBody {
+  rootLabel: string;
+  /** 삭제할 카테고리 id 정수 배열. 객체 금지. */
+  delete: number[];
+  /** 신규 카테고리. `id:-1, isNew:true, updatedData:true` 필수. */
+  append: CategoryAppendItem[];
+  /** 수정할 카테고리. `label` 에 변경 전 이름, `updatedData:false`. append 와 동일 객체도 동시 포함. */
+  update: CategoryUpdateItem[];
+}
+
+/** PUT `append[]` 각 객체. docs/api.md §3.6. */
+export interface CategoryAppendItem {
+  id: -1;
+  name: string;
+  children: CategoryAppendItem[];
+  depth: number;
+  opened: boolean;
+  priority: number;
+  visibility: VisibilityInt;
+  parent: number;
+  viewChannel: string | null;
+  entries: 0;
+  categoryInfo: Record<string, unknown>;
+  isNew: true;
+  updatedData: true;
+}
+
+/** PUT `update[]` 각 객체. docs/api.md §3.6. */
+export interface CategoryUpdateItem {
+  id: number;
+  name: string;
+  /** ★ 변경 전 이름 (이름 변경이 없으면 현재 이름 그대로). */
+  label: string;
+  priority: number;
+  entries: number;
+  visibility: VisibilityInt;
+  viewChannel: string | null;
+  children: CategoryUpdateItem[];
+  leaf: boolean;
+  categoryInfo: { liststyle?: string; image?: string; description?: string };
+  depth: number;
+  parent: number;
+  opened: boolean;
+  updatedData: false;
+  /** append 와 동시 등장하는 신규 객체 한정. */
+  isNew?: true;
+}
+
+/**
+ * `PUT /manage/category.json` — 카테고리 batch CRUD. docs/api.md §3.6.
+ *
+ * 응답의 키 이름은 GET (`categories`) 과 달리 **`categoryTree`** — 둘 다 같은 노드 구조.
+ * delete-only / append-only 도 빈 배열 채워서 보내야 함 (3 필드 전부 필수).
+ */
+export async function putCategories(
+  ctx: TistoryContext,
+  body: CategoryPutBody,
+): Promise<CategoryPutResponse> {
+  return requestJson<CategoryPutResponse>(ctx, "/manage/category.json", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
