@@ -109,7 +109,7 @@
 - [x] **실측: `/manage/category` batch save XHR reverse-engineer** — Playwright 자동 시나리오 (추가 → 이름변경 → 삭제) + 네트워크 캡처로 PUT body 3종 확정. **결과 = `PUT /manage/category.json` body `{ rootLabel, delete[], append[], update[] }`** (delete=id 정수 배열, append=`id:-1` 객체, update=`label`에 이전 이름 보존, append 시 update 에 같은 객체 동시 등장). cookie-only fetch 로 재현 검증 완료. `docs/api.md §3.6` 신설. 한도 500/글 0개 삭제 가드는 UI 측 메모만 (fetch 직접 시도 미실측). visibility 토글/이동(드래그)/하위 카테고리는 별도 task 로 분리. 캡처 스크립트: `scripts/capture-category-xhr.ts`
   - owns: `docs/api.md`
 - [x] **결정: 구현 경로** — fetch 가능 확정 → (a) 경로로 자동 결정. CLAUDE.md 함정 1 정책 유지 (Playwright 는 `session_init` / `screenshot` 두 곳만). api.ts 가 12 endpoint 로 늘어남
-- [ ] **tool: tistory_categories_update** — 트리 batch. 입력 `tree: { id?, name, visibility?, children[] }[]` 받아 현재 트리 (`/manage/category.json` GET) 와 diff → `PUT /manage/category.json` 한 방. update 객체는 `label` 필드에 변경 전 이름 보존 (실측 그대로). append 객체는 `update` 배열에도 동시 포함 (UI 흐름 모방). 글 있는 카테고리 삭제 사전 검증 reject (entries > 0). 한도 500 검증. 응답 `{ categoryTree }` → 평탄화 반환
+- [x] **tool: tistory_categories_update** — 트리 batch. 입력 `tree: { id?, name, visibility?, children[] }[]` 받아 현재 트리 (`/manage/category.json` GET) 와 diff → `PUT /manage/category.json` 한 방. update 객체는 `label` 필드에 변경 전 이름 보존 (실측 그대로). append 객체는 `update` 배열에도 동시 포함 (UI 흐름 모방). 글 있는 카테고리 삭제 사전 검증 reject (entries > 0). 한도 500 검증. 응답 `{ categoryTree }` → 평탄화 반환
   - owns: `src/tools/categories_update.ts`, `src/tistory/api.ts`
   - depends: api.ts
 
