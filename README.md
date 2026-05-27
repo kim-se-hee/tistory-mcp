@@ -16,7 +16,7 @@ npx -y tistory-mcp
 npx playwright install chromium
 ```
 
-Chromium 은 `tistory_session_init` (카카오 OAuth + 2FA 로그인 1회) 과 `tistory_screenshot` (페이지 캡처) 둘만 사용한다. 나머지 11개 도구는 추출된 쿠키 + fetch 라 브라우저가 뜨지 않는다.
+Chromium 은 `tistory_session_init` (카카오 OAuth + 2FA 로그인 1회) 과 `tistory_screenshot` (페이지 캡처) 둘만 사용한다. 나머지 12개 도구는 추출된 쿠키 + fetch 라 브라우저가 뜨지 않는다.
 
 ## MCP 클라이언트 설정
 
@@ -46,7 +46,7 @@ npm run build      # tsc → dist/index.js
 
 ## 노출되는 것
 
-- **Tools 13개** — `tistory_session_init` / `tistory_publish_post` / `tistory_update_post` / `tistory_delete_post` / `tistory_upload_image` / `tistory_apply_skin` / `tistory_apply_skin_settings` / `tistory_fetch_meta` / `tistory_preview_skin` / `tistory_screenshot` / `tistory_fetch_post` / `skin_validate` / `tistory_search_posts`
+- **Tools 14개** — `tistory_session_init` / `tistory_publish_post` / `tistory_update_post` / `tistory_delete_post` / `tistory_upload_image` / `tistory_apply_skin` / `tistory_apply_skin_settings` / `tistory_fetch_meta` / `tistory_preview_skin` / `tistory_screenshot` / `tistory_fetch_post` / `skin_validate` / `tistory_search_posts` / `tistory_categories_update`
 - **Resources 4종** — `tistory://substitutions` (치환자 카탈로그) / `tistory://page-types` (`tt-body-*` 매핑) / `tistory://gotchas` (알려진 함정) / `tistory://template-default` (동작 스킨 골격)
 - **Prompts 3종** — `tistory/new_skin` / `tistory/diagnose_render` / `tistory/iterate_loop`
 
