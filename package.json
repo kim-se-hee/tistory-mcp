@@ -10,6 +10,7 @@
   "files": [
     "dist",
     "templates",
+    "postinstall.js",
     "README.md",
     "LICENSE"
   ],
@@ -18,7 +19,8 @@
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "tsc"
+    "prepublishOnly": "tsc",
+    "postinstall": "node postinstall.js"
   },
   "keywords": [
     "mcp",
