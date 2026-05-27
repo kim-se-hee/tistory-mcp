@@ -11,10 +11,9 @@
 ```sh
 # MCP 클라이언트가 알아서 실행 — 별도 설치 불필요
 npx -y tistory-mcp
-
-# 단, Playwright 가 쓸 Chromium 바이너리는 한 번 따로 받아야 한다
-npx playwright install chromium
 ```
+
+설치 시 `postinstall` 이 Chromium 바이너리를 OS 표준 위치 (`~/.cache/ms-playwright/` 등) 에 자동으로 받는다. 네트워크 차단 환경에서 실패하면 수동으로 `npx playwright install chromium` 한 번 돌리면 된다.
 
 Chromium 은 `tistory_session_init` (카카오 OAuth + 2FA 로그인 1회) 과 `tistory_screenshot` (페이지 캡처) 둘만 사용한다. 나머지 12개 도구는 추출된 쿠키 + fetch 라 브라우저가 뜨지 않는다.
 
