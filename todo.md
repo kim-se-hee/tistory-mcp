@@ -137,7 +137,7 @@ A 고쳐도 B 없으면 "깨진 이미지"로 바뀔 뿐 → B 가 A 와 동시 
 - [x] **코드: attachments 배선** — 위 실측 확정 모양대로 배선. `upload_image` 가 attachmentRef(키/객체) 반환 → `publish_post`/`update_post` 에 `attachments` 인자 추가 → fields 머지로 `PostBody.attachments` 주입. plan.md 도구표(upload_image/publish/update 행) 보강
   - owns: `src/tistory/api.ts`, `src/tools/upload_image.ts`, `src/tools/publish_post.ts`, `src/tools/update_post.ts`, `plan.md`
   - depends: 실측: post.json `attachments` 모양 (블로커 B)
-- [ ] **코드: update_post contentHtml 되박기 가드** — `fetch_post` 의 스킨 적용 `contentHtml` 을 그대로 PUT 하면 comment_group/관련글/만료 URL 이 본문에 박힘. update_post description·fetch_post hint 정정(되박기 권장 문구 제거) + 되박기 패턴(comment_group/관련글/만료URL 마커) 감지 시 중단
+- [x] **코드: update_post contentHtml 되박기 가드** — `fetch_post` 의 스킨 적용 `contentHtml` 을 그대로 PUT 하면 comment_group/관련글/만료 URL 이 본문에 박힘. update_post description·fetch_post hint 정정(되박기 권장 문구 제거) + 되박기 패턴(comment_group/관련글/만료URL 마커) 감지 시 중단
   - owns: `src/tools/update_post.ts`, `src/tools/fetch_post.ts`
 - [ ] **코드: update_post 태그 보존** — `tags` 미지정 시 `tag:""` fallback(현재 `update_post.ts:190`) 제거 → `fetch_post` 의 `entry.tags` 로 현재 태그 보존, 못 가져오면 clearTags 없이 기본 중단
   - owns: `src/tools/update_post.ts`
