@@ -86,7 +86,10 @@ const inputShape = {
   align: z
     .enum(["alignCenter", "alignLeft", "alignRight", "widthOrigin"])
     .default("alignCenter")
-    .describe("치환자 `style`. 본문 정렬 — `alignCenter` (디폴트) / `alignLeft` / `alignRight` / `widthOrigin`."),
+    .describe(
+      "치환자 `style` (본문 정렬). `alignCenter` (디폴트) 는 실측 렌더 확인됨. " +
+        "`alignLeft`/`alignRight`/`widthOrigin` 은 카탈로그상 유효하나 시각 변별 미검증이라 결과를 보장하지 않습니다 (docs/api.md §5.3).",
+    ),
   /**
    * 만료 URL(temporaryUrl)을 기본 노출하면 LLM·사용자가 그걸 본문에 박아 +15일 후 404
    * (docs/api.md §5.3.1). 그래서 기본 응답에서 숨기고, 디버그 필요 시에만 verbose 로 노출.
