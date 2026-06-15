@@ -154,7 +154,7 @@ A 고쳐도 B 없으면 "깨진 이미지"로 바뀔 뿐 → B 가 A 와 동시 
 - [ ] **정정: publish/update description MD 문구** — 두 도구 description 의 "마크다운/HTML 모두 허용" → "마크다운 입력 시 도구가 HTML 변환" 으로 교체. plan.md 도구표 line 41 ("content (md or html)") 동기화
   - owns: `src/tools/publish_post.ts`, `src/tools/update_post.ts`, `plan.md`
   - depends: 코드: MD→HTML 변환 내장 (블로커 A)
-- [ ] **코드: upload_image 픽셀 크기 자동 채움** — 로컬 파일에서 이미지 dimension 읽어 치환자 `originWidth`/`originHeight` 자동 채움(현재 미지정 시 0×0 → 레이아웃·목차 영향). 못 구하면 `widthOrigin` 폴백 + 경고
+- [x] **코드: upload_image 픽셀 크기 자동 채움** — 로컬 파일에서 이미지 dimension 읽어 치환자 `originWidth`/`originHeight` 자동 채움(현재 미지정 시 0×0 → 레이아웃·목차 영향). 못 구하면 `widthOrigin` 폴백 + 경고
   - owns: `src/tools/upload_image.ts`, `src/tistory/api.ts`
 - [ ] **코드: update_post/delete_post postId 직행** — `postId` 직접 제공 시 목록 20p 순회(현재 `update_post.ts:169` 무조건 순회) 없이 PUT/DELETE path 로 바로. postUrl/slogan 만 순회
   - owns: `src/tools/update_post.ts`, `src/tools/delete_post.ts`
