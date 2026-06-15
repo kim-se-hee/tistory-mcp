@@ -171,7 +171,7 @@ A 고쳐도 B 없으면 "깨진 이미지"로 바뀔 뿐 → B 가 A 와 동시 
   - owns: `src/tools/publish_post.ts`, `src/tools/update_post.ts`, `src/tools/delete_post.ts`
 - [x] **코드: 세션 만료 감지 강화** — `entryUrl` 형식 검증 + 200 응답에 로그인 HTML 마커 감지 시 `SessionExpiredError` 로 변환 (현재 200 로그인 페이지를 성공으로 오인 가능)
   - owns: `src/tistory/api.ts`
-- [ ] **코드: CDM 치환자 description 정정** — (실측 부분확정 ✅ 블로커 B 캡처에서 `CDM|1.3` + `originWidth:300/originHeight:366/style:alignCenter` 가 실제 렌더됨 확인. align 변형(Left/Right/widthOrigin) 시각 변별은 미검증.) 코드 남음: `upload_image` description 의 CDM/align 단정 문구를 실측 기반으로 교체. align 변형 시각 검증은 별도 후속(선택)
+- [x] **코드: CDM 치환자 description 정정** — (실측 부분확정 ✅ 블로커 B 캡처에서 `CDM|1.3` + `originWidth:300/originHeight:366/style:alignCenter` 가 실제 렌더됨 확인. align 변형(Left/Right/widthOrigin) 시각 변별은 미검증.) 코드 남음: `upload_image` description 의 CDM/align 단정 문구를 실측 기반으로 교체. align 변형 시각 검증은 별도 후속(선택)
   - owns: `docs/api.md`, `src/tools/upload_image.ts`
 - [x] **실측: category 0 글의 스킨 노출** — ✅ 2026-06-15: 공개 + category 0 글은 익명 접근 200 + 블로그 index 정상 노출(홈 피드 표시). 카테고리 0 = 숨김 아님, "그룹 미지정"일 뿐. → 어포던스 메시지는 "숨김 경고" 가 아니라 "카테고리 미지정(홈엔 보임)" 톤. `docs/api.md §4.5` 기록
   - owns: `docs/api.md`
