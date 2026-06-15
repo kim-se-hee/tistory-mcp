@@ -156,8 +156,10 @@ export function registerPublishPost(server: McpServer): void {
       title: "Tistory 글 발행 (신규)",
       description:
         "`POST /manage/post.json` 으로 글 또는 정적 페이지를 신규 발행합니다. " +
-        "본문은 마크다운/HTML 모두 허용하지만, 서버는 HTML 로 정규화 저장하므로 " +
-        "발행 후 마크다운 원본은 복원 불가입니다 (수정 시 다시 마크다운 작성 권장). " +
+        "본문 입력 포맷은 `contentFormat` 으로 분기합니다 — 기본 `markdown` 이면 도구가 MD→HTML 로 변환해 발행하고 " +
+        "(서버는 마크다운을 렌더하지 않아 직접 넣으면 기호가 생노출됨), `html` 이면 위험 태그만 sanitize 합니다. " +
+        "어느 쪽이든 `tistory_upload_image` 의 이미지 치환자는 변환 중 보호됩니다. " +
+        "서버는 본문을 HTML 로 정규화 저장하므로 발행 후 마크다운 원본은 복원 불가입니다 (수정 시 다시 작성 권장). " +
         "이 도구는 항상 신규 글을 만듭니다 — 수정은 `tistory_update_post` 사용. " +
         "카테고리는 정수 id 로 지정합니다 — 이름이 아니라 id 이므로 먼저 `tistory_fetch_meta` 로 조회하세요. " +
         "category 를 생략하면 '카테고리 미지정(0)' 으로 발행되며, 이는 숨김이 아니라 그룹만 비어있는 상태입니다(홈 피드엔 노출). " +

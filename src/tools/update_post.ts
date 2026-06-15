@@ -260,8 +260,10 @@ export function registerUpdatePost(server: McpServer): void {
         "★ `fetch_post` 의 `contentHtml` 을 그대로 되박지 마세요 — 그건 스킨 렌더 산물이라 댓글 위젯·관련글·만료 서명 이미지 URL 이 " +
         "섞여 있어 본문이 오염되고 이미지가 만료 후 404 가 됩니다 (이 도구가 해당 마커를 감지하면 거부합니다). " +
         "본문은 원본 (마크다운 또는 깨끗한 HTML) 을 직접 작성해 보내세요. " +
+        "입력 포맷은 `contentFormat` 으로 분기합니다 — 수정은 기본 `html` (sanitize 만), `markdown` 으로 주면 도구가 MD→HTML 로 변환합니다. " +
+        "어느 쪽이든 이미지 치환자는 보존됩니다. " +
         "본문에 이미지를 삽입했다면 `tistory_upload_image` 가 준 `attachmentRef` 들을 `attachments` 인자에 함께 넘기세요 (누락 시 이미지 404). " +
-        "마크다운 원본은 서버가 HTML 정규화로만 보관 — 수정 시 마크다운으로 재작성 권장.",
+        "마크다운 원본은 서버가 HTML 정규화로만 보관 — 수정 후 마크다운 source 는 복원 불가.",
       inputSchema: inputShape,
     },
     async (input) => {
