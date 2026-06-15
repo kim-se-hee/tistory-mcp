@@ -158,7 +158,7 @@ A 고쳐도 B 없으면 "깨진 이미지"로 바뀔 뿐 → B 가 A 와 동시 
   - owns: `src/tools/upload_image.ts`, `src/tistory/api.ts`
 - [x] **코드: update_post/delete_post postId 직행** — `postId` 직접 제공 시 목록 20p 순회(현재 `update_post.ts:169` 무조건 순회) 없이 PUT/DELETE path 로 바로. postUrl/slogan 만 순회
   - owns: `src/tools/update_post.ts`, `src/tools/delete_post.ts`
-- [ ] **코드: published/protected 가드** — (실측 ✅ 2026-06-15: `published:0` 은 임시저장 아님 — post.json 은 항상 실제 글 생성, 0/1 무관하게 동일. 진짜 초안은 autosave 슬롯. `docs/api.md §4.5` 기록.) 코드 남음: `published` description "임시저장(추정)" 문구 정정(초안 아님 명시) + `protected` + password 미지정 시 발행 거부 + 공개 발행 명시 확인
+- [x] **코드: published/protected 가드** — (실측 ✅ 2026-06-15: `published:0` 은 임시저장 아님 — post.json 은 항상 실제 글 생성, 0/1 무관하게 동일. 진짜 초안은 autosave 슬롯. `docs/api.md §4.5` 기록.) 코드 남음: `published` description "임시저장(추정)" 문구 정정(초안 아님 명시) + `protected` + password 미지정 시 발행 거부 + 공개 발행 명시 확인
   - owns: `src/tools/publish_post.ts`
 
 ### P2 — 어포던스·견고성
