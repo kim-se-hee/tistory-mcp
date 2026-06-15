@@ -74,7 +74,8 @@ const inputShape = {
     .default("private")
     .describe(
       "공개 범위. 도구는 문자열 enum 만 받고 내부에서 정수 (0/15/20) 로 변환 (docs/api.md §4.3). " +
-        "`protected` 는 비밀번호 필요 (`password` 인자).",
+        "`protected` 는 비밀번호 필수 (`password` 인자) — 없으면 발행 거부. " +
+        "`public` 은 안전장치로 `confirmPublic:true` 가 있어야 발행됩니다.",
     ),
   password: z
     .string()
@@ -87,7 +88,19 @@ const inputShape = {
   published: z
     .boolean()
     .default(true)
-    .describe("`true` = 즉시 발행, `false` = 임시저장 (추정)."),
+    .describe(
+      "★ 초안/임시저장 토글이 아닙니다 — `false`(0) 든 `true`(1) 든 `post.json` 은 항상 실제 글을 생성합니다 (docs/api.md §4.5). " +
+        "공개 여부는 `visibility` 가 결정합니다. 진짜 임시저장은 별도 autosave 슬롯이라 이 도구로는 만들 수 없습니다. " +
+        "특별한 이유가 없으면 `true` 로 두세요.",
+    ),
+  confirmPublic: z
+    .boolean()
+    .default(false)
+    .describe(
+      "`visibility:public` 으로 발행할 때만 의미. 실수로 글이 전체 공개되는 것을 막는 안전장치입니다. " +
+        "공개 발행하려면 명시적으로 `true` 로 설정하세요. `false`(기본)인 채 `public` 을 주면 발행이 거부됩니다 " +
+        "(`private`/`protected` 에는 영향 없음).",
+    ),
   attachments: z
     .array(z.string().min(1))
     .optional()
@@ -110,6 +123,7 @@ type Input = {
   password?: string;
   slogan?: string;
   published: boolean;
+  confirmPublic: boolean;
   attachments?: string[];
 };
 
@@ -135,6 +149,13 @@ export function registerPublishPost(server: McpServer): void {
     },
     async (input) => {
       const args = input as Input;
+
+      // ★ 발행 전 가드 — 네트워크 호출 전에 막아 실수 발행/깨진 보호글을 차단한다.
+      const guard = guardVisibility(args);
+      if (guard) {
+        return guard;
+      }
+
       try {
         const ctx = await loadContext(args.blogUrl);
         if (!ctx) {
@@ -167,7 +188,9 @@ export function registerPublishPost(server: McpServer): void {
             {
               type: "text",
               text: [
-                `발행 완료: ${entryUrl}`,
+                args.visibility === "public"
+                  ? `⚠ 전체 공개로 발행되었습니다: ${entryUrl}`
+                  : `발행 완료: ${entryUrl}`,
                 `postId: ${postId}`,
                 `type: ${args.type}, visibility: ${args.visibility}`,
                 args.type === "page"
@@ -184,6 +207,37 @@ export function registerPublishPost(server: McpServer): void {
       }
     },
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 발행 가드 — visibility 별 안전장치 (docs/api.md §4.3, §4.6)
+//   protected: 비밀번호 없으면 서버 토큰이 들어가 사실상 잠기지 않은 보호글이 됨 → 거부
+//   public:    confirmPublic 없으면 실수 전체공개 방지 위해 거부
+// ─────────────────────────────────────────────────────────────────────────────
+
+function guardVisibility(args: Input) {
+  if (args.visibility === "protected" && !args.password) {
+    return rejected(
+      `protected(보호글) 발행에는 비밀번호가 필요합니다. ` +
+        `password 인자를 지정하거나 visibility 를 private/public 으로 바꾸세요. ` +
+        `(비밀번호 없이 보내면 서버 토큰이 들어가 의도와 다른 보호글이 됩니다.)`,
+    );
+  }
+  if (args.visibility === "public" && !args.confirmPublic) {
+    return rejected(
+      `public(전체 공개) 발행은 확인이 필요합니다. ` +
+        `의도한 공개라면 confirmPublic:true 로 다시 호출하세요. ` +
+        `초안/비공개로 두려면 visibility 를 private 으로 바꾸세요.`,
+    );
+  }
+  return null;
+}
+
+function rejected(text: string) {
+  return {
+    isError: true,
+    content: [{ type: "text" as const, text }],
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
