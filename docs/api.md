@@ -227,6 +227,21 @@ publish 인자 검증의 source of truth:
 - `delete` 에 객체 보내면 500 (`{"data":null,"message":"일시적인 문제로 처리할 수 없습니다..."}`). 반드시 ID 정수 배열.
 - DELETE method 자체는 405 (`/manage/category/{id}.json`, `/manage/category.json?id=` 등 다 막힘). PUT 만 받음.
 - 응답 키가 GET 과 다름: GET 은 `categories`, PUT 응답은 `categoryTree` — 둘 다 같은 트리 구조지만 키 이름 주의.
+
+### 3.6.1 하위 카테고리 / visibility / 순서 — 2026-06-15 controlled PUT 실측
+
+TEMP 카테고리로 직접 PUT → GET 확인 → 삭제 (기존 Spring/AI 무영향, full echo 보존).
+
+- **계층 = `children` nesting.** ★ GET 응답 노드엔 `parent`/`depth`/`opened` 필드가 **없다.** 실측 키: `id / name / label / priority / entries / visibility / viewChannel / children / leaf / categoryInfo`. 위 §3.6 append/update 예시의 `parent`/`depth`/`opened` 는 **PUT 입력 전용** (특히 append 의 `parent`) — GET 으로 다시 읽을 땐 안 옴.
+- **하위 카테고리 생성 (✅ 확정):** 세 가지가 **동시에** 필요 —
+  1. `append[]` 에 자식 객체 `{ id:-1, name, parent: <부모id>, isNew:true, updatedData:true, ... }`
+  2. `update[]` 의 부모 노드 `children` 배열에 같은 신규 객체(`id:-1`) **중첩 미러**
+  3. 부모 노드 `leaf:false`
+  → 자식이 부모 밑 nested 로 생성 (고유 id 부여, top-level 아님). **append 객체의 `children` 에만 자식을 넣는 방식은 실패** (부모만 생기고 자식 무시됨).
+- **visibility 토글 (✅ 확정):** `update[]` 객체의 `visibility` 정수(0/15/20) 변경으로 적용됨 (공개 20 → 비공개 0 확인).
+- **순서:** 같은 레벨 내 `priority`(0-based)가 표시 순서 (실측 Spring=0/AI=1 = 노출 순서 일치). 재정렬 = update 객체들 priority 재할당.
+- **이동(부모 변경):** 노드를 새 부모의 `children` 로 재배치 + parent 재지정 (하위 생성과 동일 메커니즘). 드래그 UI XHR 자체 캡처는 미실측이나 body 표현은 nesting+priority 로 환원.
+- 현 `tistory_categories_update` 는 `children` 입력을 reject (루트 전용) — 위 메커니즘으로 하위/이동 지원 구현 가능 (후속 코드 task).
 - 글이 있는 카테고리 삭제는 UI 에서 disabled (실측 — entries > 0 카테고리 row 의 `a.btn_post.삭제` 에 `.disabled` 클래스). fetch 로는 검증 없이 보낼 수 있지만 동작 미실측 — 도구에서 사전 검증 권장.
 - 카테고리 한도 500 개 (`.count_total` 의 `/ 500`).
 

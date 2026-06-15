@@ -115,8 +115,11 @@
 
 ### Phase 4 잔여 — 후속 실측 (낮은 우선순위)
 
-- [ ] **실측: 카테고리 visibility 토글 / 하위 카테고리 / 드래그 이동** — `PUT /manage/category.json` body 가 어떻게 표현되는지. 위 핵심 실측의 같은 자동 모드 스크립트 (`scripts/capture-category-xhr.ts`) 확장으로 가능. 결과는 `docs/api.md §3.6` 보강
+- [x] **실측: 카테고리 visibility 토글 / 하위 카테고리 / 드래그 이동** — ✅ 2026-06-15 controlled PUT 실측 (TEMP 카테고리 생성→GET 확인→삭제, 기존 무영향). **하위**: append `parent:<부모id>` + update 부모 `children` 중첩 미러 + 부모 `leaf:false` 3개 동시 필요 (append.children 단독은 실패). **visibility**: update `visibility` 정수 토글로 적용. **순서**: 같은 레벨 `priority`. **이동**: 부모 children 재배치(=하위와 동일). ★ GET 노드엔 `parent`/`depth`/`opened` 없음(계층=nesting). `docs/api.md §3.6.1` 신설
   - owns: `docs/api.md`
+- [ ] **코드: categories_update 하위/이동/visibility 지원** — 현재 `children[]` reject (루트 전용). §3.6.1 실측대로 확장: 트리 diff 시 자식은 append `parent` + update 부모 `children` 중첩 미러 + `leaf:false` 동시 생성, visibility 토글, priority 재정렬. GET 노드에 `parent`/`depth`/`opened` 없는 점 반영(타입 정정). plan.md 도구표 categories_update 행의 "루트 레벨만 지원" 갱신
+  - owns: `src/tools/categories_update.ts`, `src/tistory/api.ts`, `plan.md`
+  - depends: 실측: 카테고리 visibility 토글 / 하위 카테고리 / 드래그 이동
 
 ---
 
