@@ -453,8 +453,9 @@ kageRef = "kage@" + {key} + "/" + {filename} + "?" + {url 의 query 그대로}
 구조:
 - `kage@` — kakao image storage prefix
 - 그 뒤 — `url` 의 path (`/dna/` 제외) + `?` + query. 즉 서명 URL 의 host·`/dna/` 만 떼고 `kage@` 로 치환한 형태
-- `CDM|1.3` — placeholder 메타 (의미 미확정)
-- JSON — `originWidth`/`originHeight` (**에디터는 실제 픽셀 dimension 자동 채움**, 실측 300×366), `style` (`alignCenter`/`alignLeft`/`alignRight`/`widthOrigin`). 실 캡처에는 `filename` 키 없음
+- `CDM|1.3` — 고정 placeholder 메타. 의미는 미확정이나, 블로커 B 캡처에서 이 리터럴 그대로 실제 렌더됨을 확인 (그대로 박으면 동작)
+- JSON — `originWidth`/`originHeight` (**에디터는 실제 픽셀 dimension 자동 채움**, 실측 300×366), `style`. 실 캡처에는 `filename` 키 없음
+  - `style` 값 중 **`alignCenter` 만 실측 렌더 확인** (블로커 B 캡처: `originWidth:300/originHeight:366/style:alignCenter` 정상 렌더). `alignLeft`/`alignRight`/`widthOrigin` 은 catalog 상 유효 값이나 **시각 변별(좌/우/원본폭 정렬)은 미검증** — 별도 후속 확인 필요
 
 ### 5.3.1 attachments — 발행 시 필수 (영구화 메커니즘) ★
 
