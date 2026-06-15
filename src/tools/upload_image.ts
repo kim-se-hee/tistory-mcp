@@ -2,7 +2,8 @@
  * `tistory_upload_image` — 이미지 업로드. `POST /manage/post/attach.json` multipart (fetch-first).
  *
  * 핵심 함정 (docs/api.md §5.2-5.3.1, CLAUDE.md 함정 5):
- *   - 응답 `url` 은 서명/`expires` 박힌 URL. 본문 직박 금지.
+ *   - 응답 `url` 은 서명/`expires`(+15일) 박힌 만료 URL. 본문 직박 금지.
+ *     기본 응답에서 빼고 `verbose:true` 일 때만 `temporaryUrl` 로 노출 (디버그용).
  *   - 영구화는 **서명 통째 포함** ref `kage@{key}/{filename}?{서명query}` 를 두 곳에 박아야 완성:
  *     ① 본문 치환자 `[##_Image|{ref}|CDM|1.3|{json}_##]`  ② 발행 body `attachments[]`.
  *     bare `kage@{key}` 또는 attachments 미등록 = orphan → GC → 404 (docs/api.md §5.3.1).
@@ -86,6 +87,17 @@ const inputShape = {
     .enum(["alignCenter", "alignLeft", "alignRight", "widthOrigin"])
     .default("alignCenter")
     .describe("치환자 `style`. 본문 정렬 — `alignCenter` (디폴트) / `alignLeft` / `alignRight` / `widthOrigin`."),
+  /**
+   * 만료 URL(temporaryUrl)을 기본 노출하면 LLM·사용자가 그걸 본문에 박아 +15일 후 404
+   * (docs/api.md §5.3.1). 그래서 기본 응답에서 숨기고, 디버그 필요 시에만 verbose 로 노출.
+   */
+  verbose: z
+    .boolean()
+    .default(false)
+    .describe(
+      "true 면 디버그용 만료 URL(`temporaryUrl`)을 응답에 포함. " +
+        "기본 false — temporaryUrl 은 서명·만료(+15일) URL 이라 본문 직박 시 404 나는 함정이므로 숨깁니다.",
+    ),
 } as const;
 
 type Input = {
@@ -96,6 +108,7 @@ type Input = {
   width?: number;
   height?: number;
   align: "alignCenter" | "alignLeft" | "alignRight" | "widthOrigin";
+  verbose: boolean;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -116,6 +129,8 @@ export function registerUploadImage(server: McpServer): void {
         "★ 발행 시에는 `publish_post`/`update_post` 의 `attachments` 인자에 함께 반환하는 `attachmentRef` 를 반드시 넘기세요 — " +
         "둘 중 하나라도 누락하면 이미지가 orphan 으로 GC 되어 404 로 깨집니다 (docs/api.md §5.3.1). " +
         "`width`/`height`/`align` 옵션은 치환자 json 메타 (`originWidth`/`originHeight`/`style`) 에 박힙니다. " +
+        "응답은 기본으로 영구 식별자(`permanentReplacer`/`attachmentRef`/`key`)만 노출하며, " +
+        "서명·만료(+15일) URL 인 `temporaryUrl` 은 본문 직박 시 404 함정이라 `verbose:true` 일 때만 포함합니다. " +
         "세션 만료 시 `tistory_session_init` 재호출 안내 메시지를 반환합니다.",
       inputSchema: inputShape,
     },
@@ -171,12 +186,14 @@ export function registerUploadImage(server: McpServer): void {
           originWidth: width,
           originHeight: height,
           style,
-          // 업로드 응답 원본 (url 은 서명/만료 — 본문엔 박지 말 것)
+          // 업로드 응답 원본 (영구 식별자만 — url 은 서명/만료라 verbose 뒤로 숨김)
           name: res.name,
           filename: res.filename,
           key: res.key,
           size: res.size,
-          temporaryUrl: res.url,
+          // temporaryUrl 은 서명·만료(+15일) URL. 본문 직박 시 404 함정이라 기본 비노출,
+          // 디버그용으로 verbose 일 때만 포함 (docs/api.md §5.3.1).
+          ...(args.verbose ? { temporaryUrl: res.url } : {}),
         };
 
         return {
@@ -193,8 +210,9 @@ export function registerUploadImage(server: McpServer): void {
                 `★ 발행 시 \`publish_post\`/\`update_post\` 의 \`attachments\` 인자에 아래 ref 를 반드시 함께 넘기세요 (미등록 시 이미지 깨짐):`,
                 attachmentRef,
                 ``,
-                `※ \`temporaryUrl\` 은 서명된 URL. 본문에 직박 금지 — 위 치환자만 사용.`,
-                ``,
+                ...(args.verbose
+                  ? [`※ \`temporaryUrl\` 은 서명·만료(+15일) URL. 본문에 직박 금지 — 위 치환자만 사용.`, ``]
+                  : []),
                 `세부:`,
                 JSON.stringify(payload, null, 2),
               ].join("\n"),
