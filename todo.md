@@ -147,7 +147,7 @@ A 고쳐도 B 없으면 "깨진 이미지"로 바뀔 뿐 → B 가 A 와 동시 
 
 ### P1 — 렌더 품질
 
-- [ ] **코드: MD→HTML 변환 내장 (블로커 A)** — `marked` + `sanitize-html` 추가, `src/tistory/markdown.ts` 신설. `contentFormat` 인자(publish=`markdown` 디폴트 / update=`html` 디폴트), `publish_post`/`update_post` 의 content 분기를 변환 통과로 교체. 이미지 치환자 `[##_Image|...]` 는 플레이스홀더로 보호 후 marked 통과·원복(치환자가 깨지지 않게). plan.md 도구표 + §3 결정 보강
+- [x] **코드: MD→HTML 변환 내장 (블로커 A)** — `marked` + `sanitize-html` 추가, `src/tistory/markdown.ts` 신설. `contentFormat` 인자(publish=`markdown` 디폴트 / update=`html` 디폴트), `publish_post`/`update_post` 의 content 분기를 변환 통과로 교체. 이미지 치환자 `[##_Image|...]` 는 플레이스홀더로 보호 후 marked 통과·원복(치환자가 깨지지 않게). plan.md 도구표 + §3 결정 보강
   - owns: `src/tistory/markdown.ts`, `src/tools/publish_post.ts`, `src/tools/update_post.ts`, `package.json`, `package-lock.json`, `plan.md`
 - [x] **실측: 티스토리 허용 HTML 화이트리스트** — ✅ 2026-06-15 비공개 테스트글로 직접 측정(코드 의존 불필요였음). **서버는 마크다운 미렌더**(MD 기호 생노출 = 블로커 A 확정), **허용 HTML 매우 관대**(h1~h6+id / table / figure·img / pre>code[class] / blockquote / a[href,target,rel] / span[style] / div[class,data-*] / iframe 통과). 서버 보강: **헤딩 auto id**(목차 직결), code hljs+복사버튼, rel/iframe 속성. sanitize 정책 = 이 화이트리스트 관대하게 + script/onclick 만 제거. `docs/api.md §4.5` 신설 기록
   - owns: `docs/api.md`
