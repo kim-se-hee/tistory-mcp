@@ -32,10 +32,12 @@ import { renderContent, type ContentFormat } from "../tistory/markdown.js";
 const inputShape = {
   blogUrl: z
     .string()
+    .trim()
     .min(1)
     .describe(
-      "블로그 host 또는 URL. 예: `saree98.tistory.com`. " +
-        "keytar 에서 cookie 를 꺼낼 account 키. 미저장 host 면 session_init 안내.",
+      "★ 필수. 발행 대상 블로그 host 또는 URL. 예: `saree98.tistory.com`. " +
+        "keytar 에서 cookie 를 꺼낼 account 키. 미저장 host 면 session_init 안내. " +
+        "파괴적 작업이므로 기본 블로그로의 조용한 폴백은 차단됩니다 — 반드시 명시하세요 (오발행 방지).",
     ),
   title: z.string().min(1).describe("글 제목."),
   content: z
@@ -167,7 +169,9 @@ export function registerPublishPost(server: McpServer): void {
       const args = input as Input;
 
       // ★ 발행 전 가드 — 네트워크 호출 전에 막아 실수 발행/깨진 보호글/원치 않는 미분류를 차단한다.
-      const guard = guardVisibility(args) ?? guardCategory(args);
+      //   blogUrl 가드를 가장 먼저: 어느 블로그인지 모호한 채로 파괴적 작업을 시작하지 않는다.
+      const guard =
+        guardBlogUrl(args) ?? guardVisibility(args) ?? guardCategory(args);
       if (guard) {
         return guard;
       }
@@ -215,6 +219,8 @@ export function registerPublishPost(server: McpServer): void {
                 args.visibility === "public"
                   ? `⚠ 전체 공개로 발행되었습니다: ${entryUrl}`
                   : `발행 완료: ${entryUrl}`,
+                // ★ 어느 블로그에 발행했는지 항상 표기 — 오발행/잘못된 host 즉시 식별 (docs/api.md §4.6).
+                `target host: ${ctx.host}`,
                 `postId: ${postId}`,
                 `type: ${args.type}, visibility: ${args.visibility}`,
                 categoryLine,
@@ -239,6 +245,23 @@ export function registerPublishPost(server: McpServer): void {
 //   protected: 비밀번호 없으면 서버 토큰이 들어가 사실상 잠기지 않은 보호글이 됨 → 거부
 //   public:    confirmPublic 없으면 실수 전체공개 방지 위해 거부
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// blogUrl 가드 — 파괴적 도구는 대상 블로그를 반드시 명시해야 한다 (오발행 방지).
+//   zod 가 빈/공백 문자열을 1차로 거른다(.trim().min(1))지만, 네트워크 직전에 한 번 더
+//   막아 "어느 블로그인지 모호한 채로 기본 슬롯에 조용히 발행" 되는 경로를 차단한다.
+//   (loadStoredCookies 는 blogUrl 미지정 시 `default` 슬롯으로 폴백 — 이 도구는 그 경로를 쓰지 않는다.)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function guardBlogUrl(args: Input) {
+  if (args.blogUrl.trim() === "") {
+    return rejected(
+      `blogUrl 이 비어 있습니다. 발행은 파괴적 작업이라 대상 블로그를 반드시 명시해야 합니다 ` +
+        `(예: blogUrl="saree98.tistory.com"). 기본 블로그로의 조용한 폴백은 차단됩니다.`,
+    );
+  }
+  return null;
+}
 
 function guardVisibility(args: Input) {
   if (args.visibility === "protected" && !args.password) {
