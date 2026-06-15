@@ -6,6 +6,9 @@
  *     → 새 글 양산 방지하려면 반드시 PUT path 에 id 박을 것
  *   - 부분 patch 흉내: `/manage/posts.json` 으로 현재 메타 fetch → 인자로 덮어쓰기 → PUT
  *     (서버 PUT 은 full body 만 받음. 인자 빠진 필드를 default 로 보내면 title/content 가 지워짐)
+ *   - 단축 경로: 숫자 `postId` 직접 제공 + 머지 대상 필드(title/slogan/visibility/category/password)를
+ *     모두 명시하면 목록 순회를 생략하고 PUT path 로 직행 (path 의 `{id}` 가 진실 — docs/api.md §4.6).
+ *     일부라도 생략하면 fallback 머지를 위해 meta 가 필요해 순회한다.
  *   - 본문 (content) 은 현재 메타 fetch 에 포함 안 됨 →
  *     **본문을 바꾸지 않을 거면 `content` 인자를 비워두지 말고 명시적으로 같이 보낼 것**
  *     (이 도구는 본문 미지정 시 빈 문자열로 PUT 하지 않고 사용자에게 경고 후 abort).
@@ -221,20 +224,37 @@ export function registerUpdatePost(server: McpServer): void {
         const ctx = await loadContext(args.blogUrl);
         if (!ctx) return sessionRequired(args.blogUrl);
 
-        const rawId =
-          args.postId != null
-            ? String(args.postId)
-            : parsePostIdFromUrl(args.postUrl as string);
+        const postIdDirect = args.postId != null;
+        const rawId = postIdDirect
+          ? String(args.postId)
+          : parsePostIdFromUrl(args.postUrl as string);
 
-        const meta = await findPostMeta(ctx, ctx.host, rawId, args.postUrl);
-        if (!meta) {
+        // 숫자 postId 직행: 사용자가 머지 대상 필드를 모두 채웠다면 목록 순회를 생략하고
+        //   PUT path 로 바로 간다 (path 의 `{id}` 가 진실 — docs/api.md §4.6).
+        // 일부 필드를 생략했다면 meta 가 fallback 으로 필요하다. PUT 은 full body 라
+        //   meta 없이 생략 필드를 defaultPostBody (title:"" / visibility:비공개 등) 로 보내면
+        //   글이 손상되기 때문 — 이 경우엔 안전하게 순회한다.
+        const numericDirect = postIdDirect && /^\d+$/.test(rawId);
+        const hasAllMergeFields =
+          args.title !== undefined &&
+          args.slogan !== undefined &&
+          args.visibility !== undefined &&
+          args.category !== undefined &&
+          args.password !== undefined;
+        const canSkipScan = numericDirect && hasAllMergeFields;
+
+        const meta = canSkipScan
+          ? null
+          : await findPostMeta(ctx, ctx.host, rawId, args.postUrl);
+        if (!canSkipScan && !meta) {
           return errorText(
             `대상 글을 찾을 수 없습니다: id/slogan="${rawId}". ` +
               `최근 20페이지 (300건) 내에 없거나 권한 밖. ` +
-              `(listPosts 페이지네이션 한계 — 너무 오래된 글이면 별도 도구 필요)`,
+              `(listPosts 페이지네이션 한계 — 너무 오래된 글이면 별도 도구 필요. ` +
+              `숫자 postId 와 함께 title/slogan/visibility/category/password 를 모두 명시하면 순회를 건너뜁니다.)`,
           );
         }
-        const realId = meta.id;
+        const realId = meta?.id ?? rawId;
 
         if (args.content === undefined) {
           return errorText(
@@ -256,8 +276,12 @@ export function registerUpdatePost(server: McpServer): void {
         }
 
         // 현재 메타 + 인자 머지. 빠진 필드는 메타에서 가져옴.
-        const currentVisibility = visibilityFromResponse(meta.visibility);
-        const visibility: VisibilityName = args.visibility ?? currentVisibility;
+        // meta === null 은 순회 생략 경로 — 이때 머지 필드는 모두 인자로 채워져 있음(canSkipScan 보장).
+        const currentVisibility = meta
+          ? visibilityFromResponse(meta.visibility)
+          : undefined;
+        const visibility: VisibilityName = (args.visibility ??
+          currentVisibility) as VisibilityName;
         const tag =
           args.tags != null ? args.tags.join(",") : ""; /* posts.json 응답에 tag 없음 — 빈 문자열 fallback */
 
@@ -265,19 +289,26 @@ export function registerUpdatePost(server: McpServer): void {
         // 통과한 뒤 contentFormat 에 따라 변환/sanitize (docs/api.md §4.5). 이미지 치환자는 보존됨.
         const content = renderContent(args.content, args.contentFormat);
 
+        // type: meta 가 있으면 permalink 의 `/pages/` 로 판정 (docs/api.md §4). 순회 생략 경로엔
+        //   meta 가 없으므로 postUrl 의 `/pages/` 로 판정, 없으면 일반 글로 본다.
+        const isPage = meta
+          ? meta.permalink.includes("/pages/")
+          : (args.postUrl?.includes("/pages/") ?? false);
+
         const fields: Partial<PostBody> = {
-          title: args.title ?? meta.title,
+          title: (args.title ?? meta?.title) as string,
           content,
-          slogan: args.slogan ?? meta.slogan,
+          slogan: (args.slogan ?? meta?.slogan) as string,
           visibility: visibilityToInt(visibility),
-          category: args.category ?? (Number(meta.categoryId) || 0),
+          category: args.category ?? (Number(meta?.categoryId) || 0),
           tag,
           // password: 보호글이면 사용자 인자 우선, 아니면 서버 토큰 유지
           ...(args.password !== undefined
             ? { password: args.password }
-            : { password: meta.postPassword }),
-          // type 은 응답에 없음 — page 면 permalink 에 `/pages/` 가 있다 (docs/api.md §4)
-          type: meta.permalink.includes("/pages/") ? "page" : "post",
+            : meta
+              ? { password: meta.postPassword }
+              : {}),
+          type: isPage ? "page" : "post",
           // 본문 이미지 영구화 — 미등록 시 orphan GC → 404 (docs/api.md §5.3.1)
           ...(args.attachments !== undefined ? { attachments: args.attachments } : {}),
         };
@@ -292,7 +323,9 @@ export function registerUpdatePost(server: McpServer): void {
                 `수정 완료: ${entryUrl}`,
                 `postId: ${realId}`,
                 `visibility: ${visibility}` +
-                  (visibility !== currentVisibility ? ` (← ${currentVisibility})` : ""),
+                  (currentVisibility !== undefined && visibility !== currentVisibility
+                    ? ` (← ${currentVisibility})`
+                    : ""),
                 args.tags != null ? `tags: ${args.tags.join(", ") || "(없음)"}` : "",
                 `※ 태그는 응답 메타에 없어 인자 미지정 시 빈 문자열로 덮어쓰입니다. ` +
                   `현재 태그를 유지하려면 같이 보내세요.`,
