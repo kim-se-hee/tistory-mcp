@@ -96,6 +96,46 @@ async function request(
   return res;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 200-OK 로그인 페이지 감지 — redirect 분기(302/401)만으론 부족 (api.md §1.1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 만료 세션이 302/401 대신 **200 으로 로그인 페이지 HTML** 을 돌려주는 경우가 있다
+ * (SPA fallback·www.tistory.com/auth/login 직렬 렌더·카카오 OAuth 폼). 이때 `requestJson`
+ * 은 JSON.parse 실패분을 평문으로 통과시키고, `publishPost` 는 가짜 `entryUrl` 을 만들어
+ * 성공처럼 보이게 된다. 그래서 본문에서 로그인 페이지 식별 마커를 검사한다.
+ *
+ * 마커는 추측이 아니라 실측 로그인 동선(api.md §1.1)에서 확정 가능한 것만:
+ *   - 카카오 OAuth: `accounts.kakao.com` 호스트 + 로그인 폼 (`id="loginKey"`, `kakao_login`)
+ *   - 티스토리 진입: `www.tistory.com/auth/login` redirect URL / `tistory-oauth` 마커
+ * JSON 응답이나 정상 admin HTML 엔 등장하지 않는 문자열만 골라 오탐을 막는다.
+ */
+const LOGIN_PAGE_MARKERS: readonly string[] = [
+  "accounts.kakao.com",
+  "/auth/login",
+  "/auth/kakao",
+  'id="loginKey"',
+  "kakao_login",
+  "tistory-oauth",
+];
+
+function looksLikeLoginPage(body: string): boolean {
+  // JSON 본문은 대상 아님 — 정상 API 응답에 위 마커가 우연히 박힐 여지 차단.
+  const head = body.slice(0, 4096);
+  if (head.trimStart().startsWith("{") || head.trimStart().startsWith("[")) {
+    return false;
+  }
+  return LOGIN_PAGE_MARKERS.some((m) => head.includes(m));
+}
+
+/** 200 본문이 로그인 페이지로 판명되면 SessionExpiredError 로 변환. 아니면 통과. */
+function assertNotLoginPage(body: string): void {
+  if (looksLikeLoginPage(body)) {
+    throw new SessionExpiredError();
+  }
+}
+
 async function requestJson<T>(
   ctx: TistoryContext,
   pathname: string,
@@ -106,6 +146,7 @@ async function requestJson<T>(
   const res = await request(ctx, pathname, { ...init, headers });
   // 일부 endpoint (POST html.json) 가 평문 (`/preview/skin?...`) 으로 응답 → 호출자가 알아서
   const text = await res.text();
+  assertNotLoginPage(text);
   if (text === "") return undefined as T;
   try {
     return JSON.parse(text) as T;
@@ -293,6 +334,7 @@ export async function fetchBlogConfig(
     headers: { accept: "text/html" },
   });
   const html = await res.text();
+  assertNotLoginPage(html);
   // 실측: 응답은 순수 JSON 이 아니라 JS 객체 리터럴 (unquoted key) 이라 `JSON.parse` 가
   // line2 col7 에서 깨짐. 또한 객체 안에 `};` 가 박혀있으면 non-greedy 정규식이 중간에서
   // 잘리므로, `window.Config =` 시작 지점부터 중괄호 밸런스로 객체를 끝까지 추출한 뒤
@@ -424,6 +466,58 @@ export interface PostResponse {
   entryUrl: string;
 }
 
+/**
+ * 발행/수정 응답의 `entryUrl` 이 올바른 글/페이지 URL 인지 검증.
+ *
+ * 200-OK 로 로그인 페이지가 끼어들거나(이미 본문 검사로 거르지만 JSON 위장 대비 2차 방어)
+ * 서버가 예상치 못한 응답을 주면 `entryUrl` 이 글 URL 형식이 아니다. 이때 잘못된 postId 를
+ * 성공처럼 반환하지 않도록 분기한다:
+ *   - 로그인/인증 경로(`/auth/login` 등)면 SessionExpiredError
+ *   - 그 외 형식 위반이면 TistoryApiError
+ *
+ * 허용 형식: `https://{host}/{postId 정수}` (post) 또는 `https://{host}/pages/...`,
+ * 그리고 host 상대 경로(`/{id}`)도 통과 — 서버가 절대/상대 어느 쪽을 줄지 보수적으로 수용.
+ */
+function validateEntryUrl(ctx: TistoryContext, entryUrl: string): void {
+  const raw = entryUrl.trim();
+  if (raw === "") {
+    throw new TistoryApiError("Empty entryUrl in post response", 200);
+  }
+  if (/\/auth\/(login|kakao)/.test(raw) || raw.includes("accounts.kakao.com")) {
+    throw new SessionExpiredError();
+  }
+
+  let pathname: string;
+  let host: string | null = null;
+  try {
+    if (raw.startsWith("http://") || raw.startsWith("https://")) {
+      const u = new URL(raw);
+      host = u.host;
+      pathname = u.pathname;
+    } else {
+      pathname = raw.startsWith("/") ? raw : `/${raw}`;
+    }
+  } catch {
+    throw new TistoryApiError(`Malformed entryUrl: ${raw}`, 200, raw);
+  }
+
+  // 절대 URL 이면 host 가 호출 대상 블로그여야 함 (다른 도메인 = 응답 위장/오발행 신호).
+  if (host !== null && host !== ctx.host) {
+    throw new TistoryApiError(
+      `entryUrl host mismatch: expected ${ctx.host}, got ${host}`,
+      200,
+      raw,
+    );
+  }
+
+  // post: `/{정수}`, page: `/pages/...`. 둘 중 하나여야 정상.
+  const isPost = /^\/\d+\/?$/.test(pathname);
+  const isPage = pathname.startsWith("/pages/") && pathname.length > "/pages/".length;
+  if (!isPost && !isPage) {
+    throw new TistoryApiError(`Unexpected entryUrl path: ${pathname}`, 200, raw);
+  }
+}
+
 /** PostBody 의 디폴트. 도구가 일부 필드만 신경 쓰면 되도록. */
 function defaultPostBody(): PostBody {
   return {
@@ -464,7 +558,9 @@ export async function publishPost(
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  const postId = entryUrl.split("/").pop() ?? "";
+  validateEntryUrl(ctx, entryUrl);
+  // 검증 통과 후엔 마지막 path segment 가 곧 postId (page 면 slogan).
+  const postId = entryUrl.replace(/\/+$/, "").split("/").pop() ?? "";
   return { entryUrl, postId };
 }
 
@@ -480,11 +576,13 @@ export async function updatePost(
 ): Promise<{ entryUrl: string }> {
   const idStr = String(postId);
   const body: PostBody = { ...defaultPostBody(), ...fields, id: idStr };
-  return requestJson<PostResponse>(ctx, `/manage/post/${idStr}.json`, {
+  const res = await requestJson<PostResponse>(ctx, `/manage/post/${idStr}.json`, {
     method: "PUT",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+  validateEntryUrl(ctx, res.entryUrl);
+  return res;
 }
 
 /** `DELETE /manage/post/{id}.json`. docs/api.md §4.1. */
@@ -770,7 +868,9 @@ export async function applySkin(
       isPreview: body.isPreview ?? false,
     }),
   });
-  return (await res.text()).trim();
+  const text = (await res.text()).trim();
+  assertNotLoginPage(text);
+  return text;
 }
 
 /** 변수 그룹 정의 — `current.json` 응답의 일부. */
@@ -862,7 +962,9 @@ export async function previewSkin(
       isDirty: body.isDirty ?? false,
     }),
   });
-  return res.text();
+  const html = await res.text();
+  assertNotLoginPage(html);
+  return html;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
