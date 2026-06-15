@@ -6,10 +6,11 @@
  *     → 새 글 양산 방지하려면 반드시 PUT path 에 id 박을 것
  *   - 부분 patch 흉내: `/manage/posts.json` 으로 현재 메타 fetch → 인자로 덮어쓰기 → PUT
  *     (서버 PUT 은 full body 만 받음. 인자 빠진 필드를 default 로 보내면 title/content 가 지워짐)
- *   - 본문 (content) 은 현재 메타 fetch 에 포함 안 됨 — 본문 미지정 patch 는 본문 보존을
- *     위해 별도 우회 (공개 페이지 스크레이프) 가 필요하지만 fetch_post 가 아직 없음 →
+ *   - 본문 (content) 은 현재 메타 fetch 에 포함 안 됨 →
  *     **본문을 바꾸지 않을 거면 `content` 인자를 비워두지 말고 명시적으로 같이 보낼 것**
  *     (이 도구는 본문 미지정 시 빈 문자열로 PUT 하지 않고 사용자에게 경고 후 abort).
+ *     현황 본문은 `fetch_post` 로 가져올 수 있으나, 그 `contentHtml` 은 스킨 렌더 산물이라
+ *     그대로 되박으면 오염된다 (아래 되박기 오염 가드 참고).
  *   - visibility 응답은 문자열 enum (PRIVATE/PROTECTED/PUBLIC) — `visibilityFromResponse` 변환
  *   - 본문 이미지는 `attachments` 인자(=upload_image 의 `attachmentRef`)를 같이 보내야 영구화 (docs/api.md §5.3.1)
  */
@@ -59,8 +60,8 @@ const inputShape = {
     .describe(
       "새 본문. ★ 현재 본문을 보존하려면 명시적으로 같이 보내야 합니다 " +
         "(이 도구는 본문 미지정 patch 를 거부 — 서버 PUT 이 full body 라 빈 본문이 박혀 글이 비워집니다). " +
-        "본문은 그대로 두고 메타만 바꾸려면 `keepContent: true` + 현재 본문 텍스트를 별도로 가져와 다시 보내거나, " +
-        "fetch_post 도구가 준비된 뒤 사용하세요.",
+        "현황 본문은 `tistory_fetch_post` 로 확인할 수 있으나, 그 `contentHtml` 은 스킨 렌더 산물이라 그대로 되박지 말고 " +
+        "원본 (마크다운 또는 깨끗한 HTML) 을 직접 작성해 보내세요.",
     ),
   category: z.number().int().nonnegative().optional().describe("새 categoryId."),
   tags: z.array(z.string().min(1)).optional().describe("새 태그 배열 (전체 교체)."),

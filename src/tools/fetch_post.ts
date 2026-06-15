@@ -19,8 +19,6 @@
  *   - 본문 HTML 은 스킨이 적용된 상태. 이미지 url 도 스킨 처리된 형태 (`img src=...`).
  *   - visibility 는 공개 페이지에선 추론 불가 — 어차피 비공개 글은 fetch 자체가 401/302.
  *     "공개 페이지로 가져왔다" = "공개 상태" 라고 LLM 이 추론할 수 있게 응답에 명시.
- *
- * 등록 (`src/index.ts` 의 `server.registerTool`) 은 별도 도구 통합 todo 에서.
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
