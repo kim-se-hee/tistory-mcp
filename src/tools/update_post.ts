@@ -30,6 +30,7 @@ import {
   type VisibilityName,
 } from "../tistory/api.js";
 import { loadContext } from "../tistory/browser.js";
+import { renderContent, type ContentFormat } from "../tistory/markdown.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 입력 스키마
@@ -60,8 +61,16 @@ const inputShape = {
     .describe(
       "새 본문. ★ 현재 본문을 보존하려면 명시적으로 같이 보내야 합니다 " +
         "(이 도구는 본문 미지정 patch 를 거부 — 서버 PUT 이 full body 라 빈 본문이 박혀 글이 비워집니다). " +
-        "현황 본문은 `tistory_fetch_post` 로 확인할 수 있으나, 그 `contentHtml` 은 스킨 렌더 산물이라 그대로 되박지 말고 " +
-        "원본 (마크다운 또는 깨끗한 HTML) 을 직접 작성해 보내세요.",
+        "포맷은 `contentFormat` (수정은 기본 `html`). 현황 본문은 `tistory_fetch_post` 로 확인할 수 있으나, " +
+        "그 `contentHtml` 은 스킨 렌더 산물이라 그대로 되박지 말고 원본 (HTML 또는 마크다운) 을 직접 작성해 보내세요.",
+    ),
+  contentFormat: z
+    .enum(["markdown", "html"])
+    .default("html")
+    .describe(
+      "`content` 의 입력 포맷. 수정은 기본 `html` (기존 글을 HTML 로 다듬어 되박는 경우가 흔함 — sanitize 만 적용). " +
+        "마크다운으로 재작성하면 `markdown` 으로 지정하면 도구가 MD→HTML 변환합니다 (docs/api.md §4.5). " +
+        "어느 쪽이든 이미지 치환자는 보존됩니다.",
     ),
   category: z.number().int().nonnegative().optional().describe("새 categoryId."),
   tags: z.array(z.string().min(1)).optional().describe("새 태그 배열 (전체 교체)."),
@@ -87,6 +96,7 @@ type Input = {
   postUrl?: string;
   title?: string;
   content?: string;
+  contentFormat: ContentFormat;
   category?: number;
   tags?: string[];
   visibility?: VisibilityName;
@@ -251,9 +261,13 @@ export function registerUpdatePost(server: McpServer): void {
         const tag =
           args.tags != null ? args.tags.join(",") : ""; /* posts.json 응답에 tag 없음 — 빈 문자열 fallback */
 
+        // 되박기 가드(위)는 raw 입력에 대해 수행 — 마커가 스킨 렌더 산물이라 변환 전에 잡아야 함.
+        // 통과한 뒤 contentFormat 에 따라 변환/sanitize (docs/api.md §4.5). 이미지 치환자는 보존됨.
+        const content = renderContent(args.content, args.contentFormat);
+
         const fields: Partial<PostBody> = {
           title: args.title ?? meta.title,
-          content: args.content,
+          content,
           slogan: args.slogan ?? meta.slogan,
           visibility: visibilityToInt(visibility),
           category: args.category ?? (Number(meta.categoryId) || 0),

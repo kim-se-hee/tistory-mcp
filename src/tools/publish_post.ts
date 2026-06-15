@@ -23,6 +23,7 @@ import {
   type VisibilityName,
 } from "../tistory/api.js";
 import { loadContext } from "../tistory/browser.js";
+import { renderContent, type ContentFormat } from "../tistory/markdown.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 입력 스키마 (zod v4 raw shape — MCP SDK 가 .object() 로 감싼다)
@@ -40,8 +41,18 @@ const inputShape = {
   content: z
     .string()
     .describe(
-      "본문. 마크다운 또는 HTML. ★ 서버는 HTML 로 정규화 저장 — 발행 후 마크다운 원본 복원 불가. " +
-        "이미지 삽입은 `tistory_upload_image` 가 반환하는 `[##_Image|kage@{key}|CDM|1.3|{json}_##]` 치환자 사용 (url 직박은 ~5일 후 만료).",
+      "본문. 기본은 마크다운 (`contentFormat` 참고) — 도구가 HTML 로 변환해 발행합니다 " +
+        "(★ 티스토리 서버는 마크다운을 렌더하지 않아 직접 넣으면 기호가 생노출됨, docs/api.md §4.5). " +
+        "★ 서버는 HTML 로 정규화 저장 — 발행 후 마크다운 원본 복원 불가. " +
+        "이미지 삽입은 `tistory_upload_image` 가 반환하는 `[##_Image|...|CDM|1.3|{json}_##]` 치환자 사용 " +
+        "(치환자는 변환 중 보호되어 깨지지 않음, url 직박은 만료됨).",
+    ),
+  contentFormat: z
+    .enum(["markdown", "html"])
+    .default("markdown")
+    .describe(
+      "`content` 의 입력 포맷. `markdown` (기본) = 도구가 MD→HTML 변환 후 발행. " +
+        "`html` = 이미 HTML 인 본문 (위험 태그/속성만 sanitize). 어느 쪽이든 이미지 치환자는 보존됩니다.",
     ),
   /** post 와 page 분기는 body 의 `type` 한 필드만 다름 (docs/api.md §4). */
   type: z
@@ -91,6 +102,7 @@ type Input = {
   blogUrl: string;
   title: string;
   content: string;
+  contentFormat: ContentFormat;
   type: "post" | "page";
   category?: number;
   tags?: string[];
@@ -129,9 +141,13 @@ export function registerPublishPost(server: McpServer): void {
           return sessionRequired(args.blogUrl);
         }
 
+        // ★ 서버는 마크다운 미렌더 → contentFormat 에 따라 변환/sanitize 후 발행 (docs/api.md §4.5).
+        //   이미지 치환자는 변환 과정에서 보호됨 (markdown.ts).
+        const content = renderContent(args.content, args.contentFormat);
+
         const fields: Partial<PostBody> = {
           title: args.title,
-          content: args.content,
+          content,
           type: args.type,
           visibility: visibilityToInt(args.visibility),
           category: args.category ?? 0,
