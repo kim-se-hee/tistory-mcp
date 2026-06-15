@@ -64,7 +64,11 @@ const inputShape = {
     .int()
     .nonnegative()
     .optional()
-    .describe("categoryId 정수. 미지정 또는 `0` = 카테고리 없음. id 는 `tistory_fetch_meta` 로 조회."),
+    .describe(
+      "categoryId 정수. 미지정 또는 `0` = 카테고리 그룹 미지정 (숨김 아님 — 홈 피드엔 정상 노출, docs/api.md §4.5). " +
+        "★ 카테고리 ID 는 먼저 `tistory_fetch_meta` 로 조회해서 넘기세요 (이름이 아니라 정수 id). " +
+        "블로그에 카테고리가 하나도 없다면 `tistory_categories_update` 로 먼저 만들 수 있습니다.",
+    ),
   tags: z
     .array(z.string().min(1))
     .optional()
@@ -109,6 +113,15 @@ const inputShape = {
         "★ 본문 치환자의 kage 값과 글자 단위로 동일해야 하며, 누락 시 이미지가 GC 되어 404 로 깨집니다 (docs/api.md §5.3.1). " +
         "이미지가 없으면 생략.",
     ),
+  allowNoCategory: z
+    .boolean()
+    .default(true)
+    .describe(
+      "카테고리를 지정하지 않은(또는 `0`) 발행을 허용할지. 기본 `true` — 카테고리 미지정 발행은 정상 동작입니다 " +
+        "(category 0 = 숨김이 아니라 '그룹 미지정', 홈 피드엔 노출됨, docs/api.md §4.5). " +
+        "특정 카테고리에 반드시 넣어야 하는 워크플로우에서 `false` 로 주면, category 미지정 시 발행을 거부하고 " +
+        "`tistory_fetch_meta` 로 id 를 조회하도록 안내합니다 (실수로 미분류 발행되는 것을 막는 명시적 가드).",
+    ),
 } as const;
 
 type Input = {
@@ -125,6 +138,7 @@ type Input = {
   published: boolean;
   confirmPublic: boolean;
   attachments?: string[];
+  allowNoCategory: boolean;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -143,6 +157,8 @@ export function registerPublishPost(server: McpServer): void {
         "본문은 마크다운/HTML 모두 허용하지만, 서버는 HTML 로 정규화 저장하므로 " +
         "발행 후 마크다운 원본은 복원 불가입니다 (수정 시 다시 마크다운 작성 권장). " +
         "이 도구는 항상 신규 글을 만듭니다 — 수정은 `tistory_update_post` 사용. " +
+        "카테고리는 정수 id 로 지정합니다 — 이름이 아니라 id 이므로 먼저 `tistory_fetch_meta` 로 조회하세요. " +
+        "category 를 생략하면 '카테고리 미지정(0)' 으로 발행되며, 이는 숨김이 아니라 그룹만 비어있는 상태입니다(홈 피드엔 노출). " +
         "본문에 이미지를 삽입했다면 `tistory_upload_image` 가 준 `attachmentRef` 들을 `attachments` 인자에 함께 넘기세요 (누락 시 이미지 404). " +
         "세션 만료 시 `tistory_session_init` 재호출 안내 메시지를 반환합니다.",
       inputSchema: inputShape,
@@ -150,8 +166,8 @@ export function registerPublishPost(server: McpServer): void {
     async (input) => {
       const args = input as Input;
 
-      // ★ 발행 전 가드 — 네트워크 호출 전에 막아 실수 발행/깨진 보호글을 차단한다.
-      const guard = guardVisibility(args);
+      // ★ 발행 전 가드 — 네트워크 호출 전에 막아 실수 발행/깨진 보호글/원치 않는 미분류를 차단한다.
+      const guard = guardVisibility(args) ?? guardCategory(args);
       if (guard) {
         return guard;
       }
@@ -183,6 +199,14 @@ export function registerPublishPost(server: McpServer): void {
 
         const { entryUrl, postId } = await publishPost(ctx, fields);
 
+        // ★ 적용된 카테고리 상태를 항상 노출. 0 은 "숨김" 이 아니라 "그룹 미지정" 톤 (docs/api.md §4.5).
+        const appliedCategory = args.category ?? 0;
+        const categoryLine =
+          appliedCategory === 0
+            ? `category: 미지정 (0) — 카테고리 그룹 없이 발행됨 (숨김 아님, 홈 피드엔 노출). ` +
+              `특정 카테고리에 넣으려면 tistory_fetch_meta 로 id 조회 후 재발행/수정하세요.`
+            : `category: ${appliedCategory}`;
+
         return {
           content: [
             {
@@ -193,6 +217,7 @@ export function registerPublishPost(server: McpServer): void {
                   : `발행 완료: ${entryUrl}`,
                 `postId: ${postId}`,
                 `type: ${args.type}, visibility: ${args.visibility}`,
+                categoryLine,
                 args.type === "page"
                   ? `(page 는 postId 자리에 slogan 이 들어갑니다)`
                   : ``,
@@ -228,6 +253,26 @@ function guardVisibility(args: Input) {
       `public(전체 공개) 발행은 확인이 필요합니다. ` +
         `의도한 공개라면 confirmPublic:true 로 다시 호출하세요. ` +
         `초안/비공개로 두려면 visibility 를 private 으로 바꾸세요.`,
+    );
+  }
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 카테고리 가드 — opt-in. category 미지정(0) 발행은 정상이지만 (홈 피드엔 노출),
+//   호출자가 allowNoCategory:false 로 명시하면 미분류 발행을 막고 id 조회로 유도한다.
+//   ★ 톤 주의: "숨김 경고" 가 아니라 "그룹 미지정" — 거부 사유도 그 톤 유지 (docs/api.md §4.5).
+// ─────────────────────────────────────────────────────────────────────────────
+
+function guardCategory(args: Input) {
+  const noCategory = (args.category ?? 0) === 0;
+  if (noCategory && !args.allowNoCategory) {
+    return rejected(
+      `카테고리가 지정되지 않았습니다 (category 미지정 = 0, 그룹 없이 발행됨 — 숨김은 아니고 홈 피드엔 노출). ` +
+        `allowNoCategory:false 로 호출했으므로 미분류 발행을 막았습니다. ` +
+        `tistory_fetch_meta 로 categoryId 를 조회해 category 인자로 넘기거나, ` +
+        `미지정 발행을 허용하려면 allowNoCategory:true 로 다시 호출하세요. ` +
+        `(블로그에 카테고리가 하나도 없다면 tistory_categories_update 로 먼저 만드세요.)`,
     );
   }
   return null;
