@@ -42,8 +42,12 @@ import { renderContent, type ContentFormat } from "../tistory/markdown.js";
 const inputShape = {
   blogUrl: z
     .string()
+    .trim()
     .min(1)
-    .describe("블로그 host 또는 URL. 예: `saree98.tistory.com`."),
+    .describe(
+      "★ 필수. 수정 대상 블로그 host 또는 URL. 예: `saree98.tistory.com`. " +
+        "파괴적 작업이므로 기본 블로그로의 조용한 폴백은 차단됩니다 — 반드시 명시하세요 (오수정 방지).",
+    ),
   /** postId 또는 postUrl 중 하나 — superRefine 으로 둘 중 하나 강제. */
   postId: z
     .union([z.string().min(1), z.number().int().positive()])
@@ -217,6 +221,14 @@ export function registerUpdatePost(server: McpServer): void {
     async (input) => {
       const args = input as Input;
       try {
+        // ★ 어느 블로그인지 모호한 채로 파괴적 작업 금지 — 네트워크 직전에 한 번 더 막는다.
+        //   (loadStoredCookies 는 blogUrl 미지정 시 `default` 슬롯 폴백 — 이 도구는 그 경로를 안 쓴다.)
+        if (args.blogUrl.trim() === "") {
+          return errorText(
+            `blogUrl 이 비어 있습니다. 수정은 파괴적 작업이라 대상 블로그를 반드시 명시해야 합니다 ` +
+              `(예: blogUrl="saree98.tistory.com"). 기본 블로그로의 조용한 폴백은 차단됩니다.`,
+          );
+        }
         if (args.postId == null && !args.postUrl) {
           return errorText("postId 또는 postUrl 중 하나는 필수입니다.");
         }
@@ -321,6 +333,8 @@ export function registerUpdatePost(server: McpServer): void {
               type: "text",
               text: [
                 `수정 완료: ${entryUrl}`,
+                // ★ 어느 블로그를 수정했는지 항상 표기 — 오수정/잘못된 host 즉시 식별 (docs/api.md §4.6).
+                `target host: ${ctx.host}`,
                 `postId: ${realId}`,
                 `visibility: ${visibility}` +
                   (currentVisibility !== undefined && visibility !== currentVisibility
