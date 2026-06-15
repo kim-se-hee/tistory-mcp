@@ -167,7 +167,7 @@ A 고쳐도 B 없으면 "깨진 이미지"로 바뀔 뿐 → B 가 A 와 동시 
   - owns: `src/tools/publish_post.ts`
 - [x] **코드: upload_image 응답 temporaryUrl 정리** — 응답 기본에서 `temporaryUrl` 제거(permanentReplacer/key 만 노출), 만료 URL 은 `verbose` 뒤로 숨김. plan.md 도구표 line 44 동기화
   - owns: `src/tools/upload_image.ts`, `plan.md`
-- [ ] **코드: 파괴적 도구 blogUrl 강제** — publish/update/delete 가 `blogUrl` 필수 강제 + default 폴백 차단 + 대상 host 응답 표기 (오발행 방지)
+- [x] **코드: 파괴적 도구 blogUrl 강제** — publish/update/delete 가 `blogUrl` 필수 강제 + default 폴백 차단 + 대상 host 응답 표기 (오발행 방지)
   - owns: `src/tools/publish_post.ts`, `src/tools/update_post.ts`, `src/tools/delete_post.ts`
 - [ ] **코드: 세션 만료 감지 강화** — `entryUrl` 형식 검증 + 200 응답에 로그인 HTML 마커 감지 시 `SessionExpiredError` 로 변환 (현재 200 로그인 페이지를 성공으로 오인 가능)
   - owns: `src/tistory/api.ts`
