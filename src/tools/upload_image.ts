@@ -8,12 +8,16 @@
  *     bare `kage@{key}` 또는 attachments 미등록 = orphan → GC → 404 (docs/api.md §5.3.1).
  *   - 그래서 응답에 `permanentReplacer`(본문용) + `attachmentRef`(발행 attachments 용) 둘 다 반환.
  *     LLM 은 본문에 치환자를 박고, `publish_post`/`update_post` 의 `attachments` 인자에 ref 를 넘긴다.
- *   - width/height/style 미지정 시 catalog 디폴트 (`alignCenter`, 0×0).
+ *   - width/height 미지정 시 **로컬 파일 헤더에서 실픽셀 자동 추출** (에디터가 하는 동작과 동일,
+ *     docs/api.md §5.3.1 의 originWidth/Height 자동 채움). 못 구하면 0×0 + `widthOrigin` 폴백 + 경고
+ *     (0×0 은 목차·레이아웃에 영향). style 미지정 시 `alignCenter`.
  *   - field 이름은 `file` 만 동작 (api.ts 의 `uploadImage` 가 이미 강제).
  *   - mime 미지정 → filename 확장자로 추론. filename 미지정 → path basename.
  *
  * 등록 (`src/index.ts` 의 `server.registerTool`) 은 별도 도구 통합 todo 에서.
  */
+
+import { readFile } from "node:fs/promises";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
@@ -21,6 +25,7 @@ import { z } from "zod";
 import {
   buildAttachmentRef,
   buildImageSubstitution,
+  parseImageDimensions,
   SessionExpiredError,
   TistoryApiError,
   uploadImage,
@@ -64,13 +69,19 @@ const inputShape = {
     .int()
     .nonnegative()
     .optional()
-    .describe("치환자 `originWidth`. 본문 렌더 레이아웃 기준. 미지정 시 0 (티스토리가 추정)."),
+    .describe(
+      "치환자 `originWidth`. 본문 렌더 레이아웃 기준. " +
+        "미지정 시 로컬 파일 헤더에서 실픽셀 자동 추출 (PNG/JPEG/GIF/WebP/BMP). 못 구하면 0.",
+    ),
   height: z
     .number()
     .int()
     .nonnegative()
     .optional()
-    .describe("치환자 `originHeight`. 본문 렌더 레이아웃 기준. 미지정 시 0 (티스토리가 추정)."),
+    .describe(
+      "치환자 `originHeight`. 본문 렌더 레이아웃 기준. " +
+        "미지정 시 로컬 파일 헤더에서 실픽셀 자동 추출. 못 구하면 0.",
+    ),
   align: z
     .enum(["alignCenter", "alignLeft", "alignRight", "widthOrigin"])
     .default("alignCenter")
@@ -121,10 +132,31 @@ export function registerUploadImage(server: McpServer): void {
           ...(args.mime !== undefined ? { mime: args.mime } : {}),
         });
 
+        // width/height 둘 중 하나라도 미지정이면 로컬 파일 헤더에서 실픽셀 자동 추출
+        // (에디터가 하는 동작. 0×0 으로 나가면 목차·레이아웃이 부정확해짐 — docs/api.md §5.3.1).
+        let dimWarning: string | null = null;
+        let style = args.align;
+        let width = args.width ?? 0;
+        let height = args.height ?? 0;
+        if (args.width === undefined || args.height === undefined) {
+          const dims = await readImageDimensions(args.filePath);
+          if (dims) {
+            if (args.width === undefined) width = dims.width;
+            if (args.height === undefined) height = dims.height;
+          } else if (args.width === undefined && args.height === undefined) {
+            // 실픽셀 못 구함 → 명시 크기 없는 0×0 대신 widthOrigin 으로 폴백
+            // (티스토리가 원본 크기로 렌더하도록 위임).
+            style = "widthOrigin";
+            dimWarning =
+              "이미지 dimension 을 파일 헤더에서 읽지 못해 0×0 + `widthOrigin` 으로 폴백했습니다. " +
+              "정확한 레이아웃·목차가 필요하면 `width`/`height` 를 직접 지정하세요.";
+          }
+        }
+
         const meta: ImageSubstitutionMeta = {
-          originWidth: args.width ?? 0,
-          originHeight: args.height ?? 0,
-          style: args.align,
+          originWidth: width,
+          originHeight: height,
+          style,
         };
         // 서명 통째 포함 ref — 본문 치환자와 발행 attachments 가 같은 문자열을 공유 (§5.3.1)
         const attachmentRef = buildAttachmentRef(res);
@@ -135,6 +167,10 @@ export function registerUploadImage(server: McpServer): void {
           permanentReplacer,
           // ★ 발행 시 publish_post/update_post 의 `attachments` 인자에 그대로 넘길 것 (영구화 필수)
           attachmentRef,
+          // 치환자에 실제 박힌 dimension/style (자동 추출 결과 포함)
+          originWidth: width,
+          originHeight: height,
+          style,
           // 업로드 응답 원본 (url 은 서명/만료 — 본문엔 박지 말 것)
           name: res.name,
           filename: res.filename,
@@ -148,7 +184,8 @@ export function registerUploadImage(server: McpServer): void {
             {
               type: "text",
               text: [
-                `업로드 완료: ${res.filename} (${res.size} bytes)`,
+                `업로드 완료: ${res.filename} (${res.size} bytes, ${width}×${height} ${style})`,
+                ...(dimWarning ? [``, `⚠ ${dimWarning}`] : []),
                 ``,
                 `본문 삽입용 치환자 (영구):`,
                 permanentReplacer,
@@ -169,6 +206,27 @@ export function registerUploadImage(server: McpServer): void {
       }
     },
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// dimension 자동 추출 — 헤더만 읽어 실픽셀 (deps 미추가, api.ts 의 순수 파서 사용)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 로컬 이미지 파일의 픽셀 dimension 을 헤더 파싱으로 구한다. 못 구하면 null.
+ *
+ * 전체 디코드가 불필요해 선두 64KB 만 읽는다 (dimension 은 항상 파일 앞부분).
+ * 읽기 실패(ENOENT 등)는 호출부의 uploadImage 가 먼저 같은 경로로 터지므로 여기선 null 폴백.
+ */
+async function readImageDimensions(
+  filePath: string,
+): Promise<{ width: number; height: number } | null> {
+  try {
+    const buf = await readFile(filePath);
+    return parseImageDimensions(buf);
+  } catch {
+    return null;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
