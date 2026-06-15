@@ -163,7 +163,7 @@ A 고쳐도 B 없으면 "깨진 이미지"로 바뀔 뿐 → B 가 A 와 동시 
 
 ### P2 — 어포던스·견고성
 
-- [ ] **코드: 카테고리 상태 노출** — `publish_post` 응답에 카테고리 설정 상태 항상 노출(미지정 시 조용히 0 → 명시) + description 에 `fetch_meta` 선행 안내 + (선택) `allowNoCategory` 가드 + 카테고리 0개면 `categories_update` 유도
+- [x] **코드: 카테고리 상태 노출** — `publish_post` 응답에 카테고리 설정 상태 항상 노출(미지정 시 조용히 0 → 명시) + description 에 `fetch_meta` 선행 안내 + (선택) `allowNoCategory` 가드 + 카테고리 0개면 `categories_update` 유도
   - owns: `src/tools/publish_post.ts`
 - [ ] **코드: upload_image 응답 temporaryUrl 정리** — 응답 기본에서 `temporaryUrl` 제거(permanentReplacer/key 만 노출), 만료 URL 은 `verbose` 뒤로 숨김. plan.md 도구표 line 44 동기화
   - owns: `src/tools/upload_image.ts`, `plan.md`
