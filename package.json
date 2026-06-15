@@ -1,6 +1,6 @@
 {
   "name": "tistory-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MCP server for Tistory blog admin operations",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,6 +12,7 @@
     "templates",
     "postinstall.js",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
@@ -19,6 +20,7 @@
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
     "prepublishOnly": "tsc",
     "postinstall": "node postinstall.js"
   },
@@ -52,6 +54,7 @@
   "devDependencies": {
     "@types/node": "^25.9.1",
     "@types/sanitize-html": "^2.16.0",
+    "conventional-changelog-cli": "^5.0.0",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3"
   }
