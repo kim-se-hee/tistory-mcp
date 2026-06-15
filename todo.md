@@ -151,7 +151,7 @@ A 고쳐도 B 없으면 "깨진 이미지"로 바뀔 뿐 → B 가 A 와 동시 
   - owns: `src/tistory/markdown.ts`, `src/tools/publish_post.ts`, `src/tools/update_post.ts`, `package.json`, `package-lock.json`, `plan.md`
 - [x] **실측: 티스토리 허용 HTML 화이트리스트** — ✅ 2026-06-15 비공개 테스트글로 직접 측정(코드 의존 불필요였음). **서버는 마크다운 미렌더**(MD 기호 생노출 = 블로커 A 확정), **허용 HTML 매우 관대**(h1~h6+id / table / figure·img / pre>code[class] / blockquote / a[href,target,rel] / span[style] / div[class,data-*] / iframe 통과). 서버 보강: **헤딩 auto id**(목차 직결), code hljs+복사버튼, rel/iframe 속성. sanitize 정책 = 이 화이트리스트 관대하게 + script/onclick 만 제거. `docs/api.md §4.5` 신설 기록
   - owns: `docs/api.md`
-- [ ] **정정: publish/update description MD 문구** — 두 도구 description 의 "마크다운/HTML 모두 허용" → "마크다운 입력 시 도구가 HTML 변환" 으로 교체. plan.md 도구표 line 41 ("content (md or html)") 동기화
+- [x] **정정: publish/update description MD 문구** — 두 도구 description 의 "마크다운/HTML 모두 허용" → "마크다운 입력 시 도구가 HTML 변환" 으로 교체. plan.md 도구표 line 41 ("content (md or html)") 동기화
   - owns: `src/tools/publish_post.ts`, `src/tools/update_post.ts`, `plan.md`
   - depends: 코드: MD→HTML 변환 내장 (블로커 A)
 - [x] **코드: upload_image 픽셀 크기 자동 채움** — 로컬 파일에서 이미지 dimension 읽어 치환자 `originWidth`/`originHeight` 자동 채움(현재 미지정 시 0×0 → 레이아웃·목차 영향). 못 구하면 `widthOrigin` 폴백 + 경고
