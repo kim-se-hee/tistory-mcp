@@ -225,8 +225,10 @@ export function registerFetchPost(server: McpServer): void {
         "쿠키 인증이 필요 없어 `tistory_session_init` 선행 불필요. " +
         "비공개/보호글은 공개 페이지로 접근 불가 (4xx). " +
         "★ 본문은 서버가 HTML 정규화 저장 — 마크다운 원본은 어떤 경로로도 복원 불가 (docs/api.md §4.4). " +
-        "또한 본문 HTML 은 스킨이 적용된 형태 (`.tt_article_useless_p_margin` 등 컨테이너 셀렉터로 추출). " +
-        "`update_post` 의 본문 보존 (인자 미지정 시 빈 문자열 덮어쓰기 회피) 용도로 호출하는 게 주 동선입니다.",
+        "또한 본문 HTML 은 스킨이 적용된 형태 (`.tt_article_useless_p_margin` 등 컨테이너 셀렉터로 추출)라 " +
+        "댓글 위젯(#comment_group)·관련글·만료 서명 이미지 URL 이 섞여 있을 수 있습니다. " +
+        "★ 반환된 `contentHtml` 을 그대로 `update_post` 에 되박으면 본문이 오염되므로, 메타 확인·현황 파악 용도로 쓰고 " +
+        "수정 시 본문은 원본을 직접 작성하세요.",
       inputSchema: inputShape,
     },
     async (input) => {
@@ -253,8 +255,10 @@ export function registerFetchPost(server: McpServer): void {
           imageUrls: post.imageUrls,
           hint:
             "본문은 HTML 정규화된 형태입니다 (마크다운 원본 복원 불가). " +
-            "스킨이 적용된 컨테이너에서 추출됐습니다. " +
-            "`update_post` 호출 시 본문을 보존하려면 이 `contentHtml` 을 그대로 전달하세요.",
+            "스킨이 적용된 컨테이너에서 추출됐습니다 — 댓글 위젯(#comment_group)·관련글·만료 서명 이미지 URL 이 " +
+            "섞여 있을 수 있습니다. ★ 이 `contentHtml` 을 그대로 `update_post` 에 되박지 마세요: 그 산물이 본문에 굳어 " +
+            "글이 오염되고 이미지는 만료 후 404 가 됩니다 (update_post 가 해당 마커를 감지하면 거부). " +
+            "수정 시에는 본문을 원본 (마크다운 또는 깨끗한 HTML) 으로 다시 작성하세요.",
         };
 
         return jsonText(result);

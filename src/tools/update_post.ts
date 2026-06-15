@@ -95,6 +95,42 @@ type Input = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 되박기 오염 가드 — fetch_post 의 스킨 렌더 contentHtml 을 그대로 PUT 하는 사고 차단
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `fetch_post` 가 반환하는 `contentHtml` 은 **공개 페이지에서 스크레이프한 스킨 렌더 산물**이다.
+ * 본문 원본이 아니라 댓글 위젯·관련글·만료 서명 이미지 URL 까지 섞인 결과물이라,
+ * 이걸 그대로 `update_post` 의 `content` 로 다시 PUT 하면 (= 되박기) 글이 오염된다:
+ *   - `#comment_group` (티스토리 댓글 위젯) 이 본문 안에 박힘
+ *   - 관련글 위젯 컨테이너가 본문 일부로 저장됨
+ *   - 발행 시점 서명이 박힌 kage 이미지 URL 이 본문에 굳어져 expires 후 404
+ *
+ * 사용자가 의도적으로 넣는 정상 raw HTML 과 구분하기 위해, 마커는 티스토리 스킨/CDN
+ * 이 자동 생성하는 산물 특유의 것만으로 한정한다. 일반적인 본문 작성으로는 나올 수 없는
+ * 시그니처들이다.
+ */
+const REBACK_MARKERS: ReadonlyArray<{ name: string; test: RegExp }> = [
+  // 티스토리 stock 댓글 위젯. `[##_comment_group_##]` → `<div id="comment_group">`.
+  { name: "댓글 위젯 (#comment_group)", test: /id\s*=\s*["']comment_group["']/i },
+  // 관련글 위젯 컨테이너 — 티스토리가 본문 하단에 자동 주입.
+  {
+    name: "관련글 위젯",
+    test: /class\s*=\s*["'][^"']*\b(?:another_category|related_post|tt_relate[a-z_]*)\b/i,
+  },
+  // 만료 서명이 박힌 kage 이미지 URL — 발행 시점 서명이 본문에 굳으면 expires 후 404.
+  {
+    name: "만료 서명 이미지 URL (kakaocdn signature)",
+    test: /kakaocdn\.net\/dna\/[^"'\s]*[?&]signature=/i,
+  },
+];
+
+/** 되박기 오염 마커 탐지. 하나라도 걸리면 이름 목록 반환. 깨끗하면 빈 배열. */
+function detectRebackPollution(content: string): string[] {
+  return REBACK_MARKERS.filter((m) => m.test.test(content)).map((m) => m.name);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // postUrl → postId 파싱
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -157,7 +193,9 @@ export function registerUpdatePost(server: McpServer): void {
         "`PUT /manage/post/{id}.json` 으로 기존 글의 메타·본문을 수정합니다. " +
         "현재 메타를 `/manage/posts.json` 에서 fetch → 인자로 덮어쓴 뒤 full body PUT 합니다. " +
         "★ 본문(`content`)을 인자로 안 주면 서버가 빈 본문으로 덮어쓰므로 이 도구는 거부합니다. " +
-        "메타만 바꾸려면 현재 본문을 따로 가져와 같이 보내세요 (fetch_post 도구 준비 후 권장). " +
+        "★ `fetch_post` 의 `contentHtml` 을 그대로 되박지 마세요 — 그건 스킨 렌더 산물이라 댓글 위젯·관련글·만료 서명 이미지 URL 이 " +
+        "섞여 있어 본문이 오염되고 이미지가 만료 후 404 가 됩니다 (이 도구가 해당 마커를 감지하면 거부합니다). " +
+        "본문은 원본 (마크다운 또는 깨끗한 HTML) 을 직접 작성해 보내세요. " +
         "본문에 이미지를 삽입했다면 `tistory_upload_image` 가 준 `attachmentRef` 들을 `attachments` 인자에 함께 넘기세요 (누락 시 이미지 404). " +
         "마크다운 원본은 서버가 HTML 정규화로만 보관 — 수정 시 마크다운으로 재작성 권장.",
       inputSchema: inputShape,
@@ -191,6 +229,18 @@ export function registerUpdatePost(server: McpServer): void {
           return errorText(
             `content 인자가 비어있습니다. 본문 미지정 patch 는 서버가 빈 본문으로 덮어쓰므로 거부합니다. ` +
               `현재 본문을 보존하려면 직접 본문 텍스트를 가져와 content 인자로 함께 보내세요.`,
+          );
+        }
+
+        // 되박기 오염 가드: fetch_post 의 스킨 렌더 contentHtml 을 그대로 PUT 하려는 사고 차단.
+        const polluted = detectRebackPollution(args.content);
+        if (polluted.length > 0) {
+          return errorText(
+            `content 에 스킨 렌더 산물이 섞여 있어 거부합니다: ${polluted.join(", ")}. ` +
+              `\`fetch_post\` 의 \`contentHtml\` 은 공개 페이지에서 스크레이프한 결과라 댓글 위젯·관련글·만료 서명 이미지 URL 이 ` +
+              `본문에 박혀 있습니다. 이걸 그대로 update_post 에 되박으면 글이 오염되고 이미지는 만료 후 404 가 됩니다. ` +
+              `원본 본문 (마크다운 또는 깨끗한 HTML) 을 직접 작성해 보내세요. 의도적으로 raw HTML 을 넣는 경우라도 ` +
+              `위 산물 마커는 본문에서 제거한 뒤 넣어야 합니다.`,
           );
         }
 
