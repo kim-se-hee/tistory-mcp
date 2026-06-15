@@ -3,8 +3,9 @@
  *
  * 핵심:
  *   - 응답 `{ data: { id: number } }` (docs/api.md §4.1)
- *   - postId 또는 postUrl 둘 다 허용. postUrl 이면 path 마지막 segment 가 숫자가 아닐 수 있어 (page 의 slogan)
- *     listPosts 페이지 순회로 실제 id 매칭 → DELETE
+ *   - 숫자 `postId` 직접 제공 시 목록 순회 없이 DELETE path 로 직행 (path 의 `{id}` 가 진실 — docs/api.md §4.6).
+ *     순회로 얻던 meta(title/permalink)는 응답 표기용 부가정보일 뿐 삭제엔 불필요.
+ *   - `postUrl`/slogan 만 주어진 경우에만 listPosts 페이지 순회로 실제 id 매칭 (page 의 slogan 우회).
  *   - 삭제는 되돌릴 수 없음 — description 명시
  */
 
@@ -59,22 +60,23 @@ function parseLastSegment(url: string): string {
   return u.pathname.split("/").filter(Boolean).pop() ?? "";
 }
 
-/** 숫자 id 가 바로 들어오면 그대로, slogan 또는 permalink 매칭이면 페이지 순회. */
+/**
+ * 숫자 `postId` 직접 제공이면 목록 순회 없이 그대로 DELETE path 로 (path 의 `{id}` 가 진실).
+ * slogan/permalink 만 주어진 경우에만 페이지 순회로 실제 id 를 해소한다.
+ */
 async function resolvePostId(
   ctx: TistoryContext,
   rawId: string,
   postUrl: string | undefined,
+  postIdDirect: boolean,
 ): Promise<{ id: string; meta: PostListItem } | null> {
-  // 숫자만으로 구성되면 그대로 신뢰 (post 의 일반 케이스)
-  if (/^\d+$/.test(rawId) && !postUrl?.includes("/pages/")) {
-    // 실재 여부 확인까지는 안 함 — DELETE 가 404 면 어차피 api.ts 가 throw
-    // meta 조회는 page slogan 매칭 케이스에서만 필요
-    const meta = await findInListPosts(ctx, (it) => it.id === rawId);
-    if (meta) return { id: meta.id, meta };
-    // 못 찾았어도 id 자체는 신뢰 — listPosts 가 20페이지 (300건) 안에 없을 수 있음
+  // 숫자 postId 직행: 순회로 얻던 meta 는 표기용일 뿐 — DELETE 에 불필요하므로 스캔 생략.
+  // 실재 여부는 검증 안 함 (없으면 DELETE 가 404 → api.ts 가 throw).
+  if (postIdDirect && /^\d+$/.test(rawId)) {
     return { id: rawId, meta: { id: rawId } as PostListItem };
   }
 
+  // postUrl 의 마지막 segment 가 숫자라도 page 는 slogan 일 수 있으니 순회로 매칭.
   const target = postUrl ?? "";
   const meta = await findInListPosts(
     ctx,
@@ -128,12 +130,12 @@ export function registerDeletePost(server: McpServer): void {
         const ctx = await loadContext(args.blogUrl);
         if (!ctx) return sessionRequired(args.blogUrl);
 
-        const rawId =
-          args.postId != null
-            ? String(args.postId)
-            : parseLastSegment(args.postUrl as string);
+        const postIdDirect = args.postId != null;
+        const rawId = postIdDirect
+          ? String(args.postId)
+          : parseLastSegment(args.postUrl as string);
 
-        const resolved = await resolvePostId(ctx, rawId, args.postUrl);
+        const resolved = await resolvePostId(ctx, rawId, args.postUrl, postIdDirect);
         if (!resolved) {
           return errorText(
             `대상 글을 찾을 수 없습니다: "${rawId}". ` +
