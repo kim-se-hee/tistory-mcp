@@ -1,30 +1,33 @@
 /**
- * `tistory_categories_update` — 카테고리 트리 batch CRUD.
+ * `tistory_categories_update` — 카테고리 트리 batch CRUD (하위/이동/visibility 포함).
  *
- * 동선 (`docs/api.md §3.6`):
+ * 동선 (`docs/api.md §3.6`, §3.6.1):
  *   1) `GET /manage/category.json` — 현재 트리 + `rootLabel` 확보
- *   2) 입력 트리와 diff → `delete[]` / `append[]` / `update[]` 3-array 산출
+ *   2) 입력 트리(desired state)와 diff → `delete[]` / `append[]` / `update[]` 3-array 산출
  *   3) `PUT /manage/category.json` 한 방. 응답 `{ categoryTree }` 평탄화 반환
  *
  * **시맨틱:**
- *   - 입력은 **전체 트리 desired state**. id 있는 노드 = 기존, 없으면 신규, 응답엔 있지만
- *     입력에 빠진 id = 삭제. (현재 단계는 루트 레벨만 — children 미지원, 미실측)
+ *   - 입력은 **전체 트리 desired state** (중첩 children 포함). id 있는 노드 = 기존,
+ *     없으면 신규, 응답엔 있지만 입력에 빠진 id = 삭제.
+ *   - 트리 내 위치가 곧 계층/순서: 배열 index = `priority`, nesting 깊이 = `depth`,
+ *     부모 노드 id = 자식의 `parent`. ★ GET 노드엔 `parent`/`depth`/`opened` 가 없으므로
+ *     (§3.6.1) 계층은 desired 트리의 nesting 으로만 재구성한다.
  *   - update 객체의 `label` 필드는 **변경 전 이름** 보존 (실측 — 서버 식별/충돌 검증 추정)
- *   - append 객체는 `update[]` 에도 동시 포함 — UI 흐름 모방 (실측 관찰, 안전 디폴트)
  *   - cookie-only fetch. CLAUDE.md 함정 1 유지 (Playwright 는 session_init / screenshot 만)
+ *
+ * **하위 카테고리 (§3.6.1 실측) — 세 가지 동시:**
+ *   1. `append[]` 에 자식 객체 `{ id:-1, parent:<부모id>, ... }`
+ *   2. `update[]` 의 부모 노드 `children` 에 같은 신규 객체(`id:-1`) 중첩 미러
+ *   3. 부모 노드 `leaf:false`
+ *   (append.children 단독은 자식 무시 — 실측). 이동(부모 변경)도 같은 메커니즘.
+ *
+ * **visibility:** update 객체의 `visibility` 정수(0/15/20) 변경으로 적용 (§3.6.1 실측 확정).
  *
  * **검증 (사전 reject):**
  *   - 글이 있는 카테고리 삭제: 응답의 `entries > 0` 노드 삭제 시도 → UI 가드 미러
  *     (fetch 직접 호출 시 서버 거부 동작은 미실측)
  *   - 한도 500: append 후 총 노드 수가 500 초과면 reject
- *   - children 미지원: 입력의 `children[]` 가 비지 않으면 reject — 하위 카테고리 body 표현 미실측
- *     (별도 후속 todo 의 실측 완료 후 확장)
- *
- * **미실측 / 보수적 처리:**
- *   - visibility 토글 body 표현 미실측. 입력에 `visibility` 와 응답의 그것이 다르면 정수만
- *     덮어쓴 채 PUT 시도 — 동작 보장 X (서버 무시 가능). 결과는 응답 트리에서 확인 필요
- *   - 카테고리 이동(부모 변경) / 순서 변경 미실측 — 루트 레벨 순서는 입력 배열 순서를 priority 로
- *     박지만 동작 보장 X
+ *   - 모르는 id: desired 에 현재 트리에 없는 id 가 있으면 reject
  *
  * 등록 (`src/tools/index.ts` barrel) 은 별도 통합 todo 에서 (이 도구 파일 owns 밖).
  */
@@ -52,8 +55,6 @@ import { loadContext } from "../tistory/browser.js";
 // 입력 스키마 (zod v4 raw shape)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// children 은 미지원 (미실측). 입력 스키마에 자리는 두되 비어있어야 함.
-// z.lazy 로 재귀 정의하지만 핸들러에서 비어있는지 강제로 검증한다.
 type DesiredNode = {
   id?: number;
   name: string;
@@ -77,14 +78,15 @@ const desiredNodeSchema: z.ZodType<DesiredNode> = z.lazy(() =>
       .optional()
       .describe(
         "공개 범위. 미지정 시 기존 노드는 현재 visibility 보존, 신규는 `public` 디폴트. " +
-          "★ visibility 변경 body 표현 미실측 — 동작 보장 X (별도 후속 todo).",
+          "update 객체의 visibility 정수 토글로 적용 (docs/api.md §3.6.1).",
       ),
     children: z
       .array(desiredNodeSchema)
       .optional()
       .describe(
-        "하위 카테고리. **현재 미지원** — 비어있지 않으면 reject. " +
-          "하위 카테고리 body 표현이 미실측 (별도 후속 todo).",
+        "하위 카테고리 (중첩 트리). 신규 자식은 부모와 동시에 생성됨 — " +
+          "append `parent` + 부모 update `children` 중첩 미러 + 부모 `leaf:false` " +
+          "(docs/api.md §3.6.1). 이동(부모 변경)도 새 위치에 nesting 으로 표현.",
       ),
   }),
 );
@@ -100,9 +102,9 @@ const inputShape = {
   tree: z
     .array(desiredNodeSchema)
     .describe(
-      "전체 카테고리 트리 desired state. id 있는 노드 = 기존, 없으면 신규, " +
-        "응답에 있지만 입력에 없는 id 는 삭제. " +
-        "★ 현재 루트 레벨만 지원 (`children[]` 미지원, 미실측). " +
+      "전체 카테고리 트리 desired state (중첩 children 포함). id 있는 노드 = 기존, " +
+        "없으면 신규, 응답에 있지만 입력에 없는 id 는 삭제. " +
+        "배열 순서 = priority, nesting = 계층 (docs/api.md §3.6.1). " +
         "★ 글이 있는 카테고리 (`entries > 0`) 삭제는 사전 reject. " +
         "★ 한도 500개. 초과 append 는 reject.",
     ),
@@ -120,7 +122,9 @@ type Input = {
 interface FlatCategory {
   id: number;
   name: string;
+  /** 부모 id (0 = 루트). GET/PUT 응답엔 없어 트리 위치에서 재구성 (§3.6.1). */
   parent: number;
+  /** 1 = 루트, 2 = 하위. 트리 위치에서 재구성. */
   depth: number;
   priority: number;
   entries: number;
@@ -128,24 +132,25 @@ interface FlatCategory {
   leaf: boolean;
 }
 
+/** 응답 트리를 평탄화. 계층(parent/depth)은 nesting 위치에서 재구성한다 (§3.6.1). */
 function flattenTree(nodes: CategoryNode[]): FlatCategory[] {
   const out: FlatCategory[] = [];
-  const walk = (ns: CategoryNode[]): void => {
-    for (const n of ns) {
+  const walk = (ns: CategoryNode[], parent: number, depth: number): void => {
+    ns.forEach((n, idx) => {
       out.push({
         id: n.id,
         name: n.name,
-        parent: n.parent,
-        depth: n.depth,
-        priority: n.priority,
+        parent,
+        depth,
+        priority: typeof n.priority === "number" ? n.priority : idx,
         entries: n.entries,
         visibility: visibilityFromInt(n.visibility),
         leaf: n.leaf,
       });
-      if (n.children && n.children.length > 0) walk(n.children);
-    }
+      if (n.children && n.children.length > 0) walk(n.children, n.id, depth + 1);
+    });
   };
-  walk(nodes);
+  walk(nodes, 0, 1);
   return out;
 }
 
@@ -157,105 +162,143 @@ interface DiffResult {
   delete: number[];
   append: CategoryAppendItem[];
   update: CategoryUpdateItem[];
-  /** UI 흐름 모방 — append 시 update 에도 같은 객체 동시 등장. */
-  newAsUpdateMirrors: CategoryUpdateItem[];
+}
+
+/** 현재 트리를 id → 노드로 평탄 인덱싱 (하위 포함). 모르는 id 검증·기존 메타 보존용. */
+function indexById(nodes: CategoryNode[]): Map<number, CategoryNode> {
+  const m = new Map<number, CategoryNode>();
+  const walk = (ns: CategoryNode[]): void => {
+    for (const n of ns) {
+      m.set(n.id, n);
+      if (n.children && n.children.length > 0) walk(n.children);
+    }
+  };
+  walk(nodes);
+  return m;
 }
 
 /**
- * 루트 레벨 desired vs current 비교.
- * children 미지원이라 깊이 1 (루트) 만 처리. 입력의 children 비어있음은 핸들러에서 사전 검증.
+ * desired 트리를 재귀 순회하며 append/update/delete 3-array 산출.
+ *
+ * - 기존 노드(id 있음): update 객체 생성. 새 위치의 parent/depth/priority/visibility 반영.
+ *   자식이 있으면 update.children 에 자식 객체들을 중첩 미러하고 `leaf:false` (§3.6.1).
+ * - 신규 노드(id 없음): append 객체(id:-1) 생성. 부모의 update.children 에 동일 객체를
+ *   중첩 미러해야 부모 밑에 생성됨 (루트 신규는 미러 불필요).
+ * - 부모가 신규(id:-1)면 자식 append 의 parent 도 -1 — 실제 연결은 nesting 미러가 담당.
  */
-function computeDiff(
-  current: CategoryNode[],
-  desired: DesiredNode[],
-): DiffResult {
-  const currentRoots = current; // 응답의 categories[] 가 곧 루트
-  const currentById = new Map<number, CategoryNode>();
-  for (const n of currentRoots) currentById.set(n.id, n);
-
+function computeDiff(current: CategoryNode[], desired: DesiredNode[]): DiffResult {
+  const currentById = indexById(current);
   const keptIds = new Set<number>();
-  const update: CategoryUpdateItem[] = [];
   const append: CategoryAppendItem[] = [];
-  const newAsUpdateMirrors: CategoryUpdateItem[] = [];
+  const update: CategoryUpdateItem[] = [];
 
-  desired.forEach((d, idx) => {
-    const priority = idx;
-    if (d.id !== undefined) {
-      const cur = currentById.get(d.id);
-      if (!cur) {
-        // 사용자가 모르는 id 보냄 — 핸들러에서 에러로 변환하기 위해 keptIds 에 박지 않음
-        // (delete 대상으로 잡힐 일도 없음 — currentById 에 없으니까)
-        throw new DiffError(`존재하지 않는 카테고리 id: ${d.id}`);
-      }
-      keptIds.add(d.id);
+  /**
+   * 한 노드를 변환해 append/update 에 push 하고, 그 노드를 부모의 children 미러로 쓸
+   * 객체(append item 또는 update item)를 반환한다. 반환 객체 자신의 children 도 채워진다.
+   *
+   * @param parentId 부모 카테고리 id (0 = 루트, -1 = 신규 부모)
+   * @param depth 1 = 루트
+   */
+  const visit = (
+    node: DesiredNode,
+    parentId: number,
+    depth: number,
+    priority: number,
+  ): CategoryAppendItem | CategoryUpdateItem => {
+    const hasChildren = node.children !== undefined && node.children.length > 0;
+
+    if (node.id !== undefined) {
+      const cur = currentById.get(node.id);
+      if (!cur) throw new DiffError(`존재하지 않는 카테고리 id: ${node.id}`);
+      keptIds.add(node.id);
+
       const visInt: VisibilityInt =
-        d.visibility !== undefined ? visibilityToInt(d.visibility) : cur.visibility;
-      update.push({
+        node.visibility !== undefined
+          ? visibilityToInt(node.visibility)
+          : cur.visibility;
+
+      // 자식 미러를 먼저 만든다 (자식들도 append/update 에 push 됨).
+      // 신규 자식이면 append 객체, 기존 자식이면 update 객체가 그대로 미러됨 (§3.6.1).
+      const childMirrors: (CategoryAppendItem | CategoryUpdateItem)[] = [];
+      if (hasChildren) {
+        node.children!.forEach((c, i) => {
+          childMirrors.push(visit(c, cur.id, depth + 1, i));
+        });
+      }
+
+      const item: CategoryUpdateItem = {
         id: cur.id,
-        name: d.name,
+        name: node.name,
         // ★ label 에 변경 전 이름 보존 (실측 — 이름 변경 없으면 현재 이름 그대로)
         label: cur.name,
         priority,
         entries: cur.entries,
         visibility: visInt,
         viewChannel: cur.viewChannel,
-        children: [],
-        leaf: cur.leaf,
+        children: childMirrors,
+        // 자식이 생기면 leaf:false (§3.6.1). 자식 없으면 현재 leaf 보존.
+        leaf: hasChildren ? false : cur.leaf,
         categoryInfo: cur.categoryInfo ?? {},
-        depth: cur.depth,
-        parent: cur.parent,
-        opened: cur.opened,
+        depth,
+        parent: parentId,
+        opened: cur.opened ?? true,
         updatedData: false,
-      });
-    } else {
-      // 신규 — id: -1, isNew/updatedData true. 부모는 0 (루트), depth 1.
-      const visInt: VisibilityInt =
-        d.visibility !== undefined ? visibilityToInt(d.visibility) : 20; // 디폴트 public
-      const newItem: CategoryAppendItem = {
-        id: -1,
-        name: d.name,
-        children: [],
-        depth: 1,
-        opened: true,
-        priority,
-        visibility: visInt,
-        parent: 0,
-        viewChannel: null,
-        entries: 0,
-        categoryInfo: {},
-        isNew: true,
-        updatedData: true,
       };
-      append.push(newItem);
+      update.push(item);
+      return item;
+    }
 
-      // UI 흐름 모방 — update[] 에도 같은 신규 객체를 update item 형태로 등장
-      newAsUpdateMirrors.push({
-        id: -1,
-        name: d.name,
-        label: d.name, // 신규는 변경 전 이름이 곧 새 이름
-        priority,
-        entries: 0,
-        visibility: visInt,
-        viewChannel: null,
-        children: [],
-        leaf: true,
-        categoryInfo: {},
-        depth: 1,
-        parent: 0,
-        opened: true,
-        updatedData: false,
-        isNew: true,
+    // 신규 — id:-1, isNew/updatedData true.
+    const visInt: VisibilityInt =
+      node.visibility !== undefined ? visibilityToInt(node.visibility) : 20; // 디폴트 public
+
+    // 자식 미러를 먼저 만든다 (자식 append 객체들이 부모 children 에 중첩됨, §3.6.1).
+    const childMirrors: CategoryAppendItem[] = [];
+    if (hasChildren) {
+      node.children!.forEach((c, i) => {
+        const m = visit(c, -1, depth + 1, i);
+        // 신규 부모 밑의 노드는 신규여야 한다 (기존 노드를 신규 부모로 이동 = id 있는 자식인데
+        // 부모가 -1 → 서버가 부모 못 찾음). 보수적으로 거부.
+        if (!("isNew" in m) || m.isNew !== true) {
+          throw new DiffError(
+            `신규 카테고리 "${node.name}" 하위에 기존 카테고리(id=${(m as CategoryUpdateItem).id})를 ` +
+              `둘 수 없습니다. 기존 카테고리 이동은 기존(id 있는) 부모 밑으로만 가능합니다.`,
+          );
+        }
+        childMirrors.push(m as CategoryAppendItem);
       });
     }
+
+    const item: CategoryAppendItem = {
+      id: -1,
+      name: node.name,
+      children: childMirrors,
+      depth,
+      opened: true,
+      priority,
+      visibility: visInt,
+      parent: parentId,
+      viewChannel: null,
+      entries: 0,
+      categoryInfo: {},
+      isNew: true,
+      updatedData: true,
+    };
+    append.push(item);
+    return item;
+  };
+
+  desired.forEach((d, idx) => {
+    visit(d, 0, 1, idx);
   });
 
-  // 응답에 있는데 keptIds 에 없는 노드 = 삭제 대상
+  // 응답에 있는데 keptIds 에 없는 노드 = 삭제 대상 (하위 포함).
   const del: number[] = [];
-  for (const n of currentRoots) {
-    if (!keptIds.has(n.id)) del.push(n.id);
+  for (const id of currentById.keys()) {
+    if (!keptIds.has(id)) del.push(id);
   }
 
-  return { delete: del, append, update, newAsUpdateMirrors };
+  return { delete: del, append, update };
 }
 
 class DiffError extends Error {
@@ -280,11 +323,13 @@ export function registerCategoriesUpdate(server: McpServer): void {
     {
       title: "Tistory 카테고리 트리 batch 업데이트",
       description:
-        "전체 카테고리 트리를 desired state 로 박아 추가/이름변경/삭제를 한 번에 처리합니다. " +
-        "현재 트리 (`/manage/category.json` GET) 와 diff 해서 `PUT /manage/category.json` " +
-        "(body `{ rootLabel, delete[], append[], update[] }`) 한 방으로 적용. " +
+        "전체 카테고리 트리를 desired state 로 박아 추가/이름변경/삭제/이동/공개범위 변경을 " +
+        "한 번에 처리합니다. 현재 트리 (`/manage/category.json` GET) 와 diff 해서 " +
+        "`PUT /manage/category.json` (body `{ rootLabel, delete[], append[], update[] }`) 한 방으로 적용. " +
         "★ 입력은 desired state — id 있는 노드 = 기존, 없으면 신규, 입력에 빠진 id 는 삭제. " +
-        "★ 현재는 **루트 레벨만 지원** (하위 카테고리 / `children[]` 미실측). " +
+        "★ 중첩 `children[]` 으로 하위 카테고리 지원 (배열 순서 = 표시 순서, nesting = 계층). " +
+        "신규 하위는 append `parent` + 부모 update `children` 중첩 미러 + 부모 `leaf:false` " +
+        "3개를 동시에 보냄 (docs/api.md §3.6.1). visibility 는 update 정수 토글로 적용. " +
         "★ 글이 있는 카테고리 (`entries > 0`) 삭제 시도는 사전 reject (UI 가드 미러). " +
         "★ 한도 500개 초과 reject. " +
         "응답은 갱신된 트리 평탄화 (id/name/parent/depth/priority/entries/visibility/leaf). " +
@@ -294,17 +339,6 @@ export function registerCategoriesUpdate(server: McpServer): void {
     async (input) => {
       const args = input as Input;
       try {
-        // 입력 사전 검증 — children 미지원
-        for (const node of args.tree) {
-          if (node.children !== undefined && node.children.length > 0) {
-            return errorText(
-              `children 미지원: "${node.name}" 에 하위 카테고리가 있습니다. ` +
-                `하위 카테고리 body 표현은 미실측 — 별도 후속 todo 의 실측 완료 후 지원 예정. ` +
-                `현재는 루트 레벨만 보내주세요.`,
-            );
-          }
-        }
-
         const ctx = await loadContext(args.blogUrl);
         if (!ctx) return sessionRequired(args.blogUrl);
 
@@ -320,10 +354,11 @@ export function registerCategoriesUpdate(server: McpServer): void {
           throw err;
         }
 
-        // 글 있는 카테고리 삭제 reject
+        // 글 있는 카테고리 삭제 reject (하위 포함 인덱스에서 조회).
+        const currentById = indexById(currentRoots);
         const blockedDeletes: { id: number; name: string; entries: number }[] = [];
         for (const id of diff.delete) {
-          const node = currentRoots.find((n) => n.id === id);
+          const node = currentById.get(id);
           if (node && node.entries > 0) {
             blockedDeletes.push({ id: node.id, name: node.name, entries: node.entries });
           }
@@ -348,12 +383,11 @@ export function registerCategoriesUpdate(server: McpServer): void {
           );
         }
 
-        // PUT body 조립 — UI 흐름 모방: update[] 에 신규 객체 미러 동시 포함
         const putBody: CategoryPutBody = {
           rootLabel: currentRes.rootLabel ?? "",
           delete: diff.delete,
           append: diff.append,
-          update: [...diff.update, ...diff.newAsUpdateMirrors],
+          update: diff.update,
         };
 
         const putRes = await putCategories(ctx, putBody);
@@ -386,7 +420,7 @@ export function registerCategoriesUpdate(server: McpServer): void {
   );
 }
 
-// 트리 전체 노드 수 — 한도 검증용. 현재 단계는 루트만이지만 응답엔 children 박힐 수 있어 재귀.
+// 트리 전체 노드 수 — 한도 검증용 (하위 포함 재귀).
 function countAll(nodes: CategoryNode[]): number {
   let n = 0;
   const walk = (ns: CategoryNode[]): void => {
