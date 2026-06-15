@@ -27,101 +27,114 @@ const BACKUP_ROOT = ".skin-backup";
 
 const TOC_STYLE = `
 <style>
-/* tistory-mcp: TOC — mini-map 막대는 항상 같은 자리 (안 움직임).
-   hover 시 라벨만 왼쪽으로 fade+slide. 배경/보더/그림자 일체 없음. */
+/* tistory-mcp: TOC mini-map → hover expand. 모노톤, 노션식 정렬 (H2 길게, H3 절반). */
 #tm-toc {
   position: fixed;
   right: 24px;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 9999;
-  width: 32px;            /* 평상시 hit area = mini-map 폭만 */
+  width: 36px;
   max-height: 80vh;
   padding: 8px 0;
   background: transparent;
-  border: none;
-  box-shadow: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
   font: inherit;
   font-size: 13px;
-  line-height: 1;
-  overflow: visible;      /* 라벨은 왼쪽으로 비져나옴 */
+  line-height: 1.5;
+  color: #333;
+  z-index: 9999;
+  overflow: hidden;
+  transition: width 0.18s ease, padding 0.18s ease, background 0.18s ease, border-color 0.18s ease;
 }
-/* hover 영역만 왼쪽으로 확장 (시각적 변화 없음 — 배경 없음). 라벨로 마우스 옮겨도 hover 유지. */
 #tm-toc:hover,
-#tm-toc:focus-within { width: 260px; }
-
-#tm-toc-title { display: none; }
-#tm-toc ul { list-style: none; margin: 0; padding: 0; }
-#tm-toc li {
-  position: relative;
-  height: 14px;
-  margin: 4px 0;
-  text-align: right;
+#tm-toc:focus-within {
+  width: 200px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 4px 8px;
+  background: transparent;
+  border-color: transparent;
+  scrollbar-width: thin;
 }
+#tm-toc-title { display: none; }
+
+#tm-toc ul { list-style: none; margin: 0; padding: 0; }
+#tm-toc li { margin: 0; }
 #tm-toc a {
   display: block;
   position: relative;
-  text-align: right;
-  text-decoration: none;
-  color: inherit;
-  line-height: 1;
-}
-
-/* 막대 — 항상 우측 끝에 박힘. hover 와 무관하게 같은 위치/같은 크기. */
-.tm-bar {
-  display: inline-block;
-  height: 2px;
-  border-radius: 1px;
-  vertical-align: middle;
-  transition: background-color 0.15s ease;
-}
-.tm-h1 .tm-bar { width: 24px; background: #888; }
-.tm-h2 .tm-bar { width: 20px; background: #aaa; }
-.tm-h3 .tm-bar { width: 12px; background: #c0c0c0; }
-.tm-h4 .tm-bar { width: 8px;  background: #d0d0d0; }
-.tm-active .tm-bar { background: #111; }
-
-/* 라벨 — 평상시 invisible. hover 시 fade+slide. */
-.tm-label {
-  position: absolute;
-  right: 32px;            /* 막대 우측 정렬 + 약간의 여백 */
-  top: 50%;
-  white-space: nowrap;
-  font-size: 13px;
-  line-height: 1;
+  padding: 5px 8px;
   color: #555;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-50%) translateX(6px);
-  transition: opacity 0.22s ease, transform 0.22s ease;
+  text-decoration: none;
+  /* mini-map 기본: 텍스트 숨김, 막대만 */
+  font-size: 0;
+  line-height: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.12s, font-size 0.18s ease, line-height 0.18s ease, padding 0.18s ease;
 }
-.tm-h1 .tm-label { color: #333; font-weight: 500; }
-.tm-h2 .tm-label { color: #555; }
-.tm-h3 .tm-label { color: #777; font-size: 12.5px; }
-.tm-h4 .tm-label { color: #888; font-size: 12px; }
-.tm-active .tm-label { color: #111; font-weight: 600; }
-
-#tm-toc:hover .tm-label,
-#tm-toc:focus-within .tm-label {
-  opacity: 1;
-  transform: translateY(-50%) translateX(0);
-  pointer-events: auto;
+/* mini-map 막대: 4단계 위계 — H1 가장 길고, H4 가장 짧음. */
+#tm-toc a::before {
+  content: '';
+  display: block;
+  height: 2px;
+  width: 24px;
+  background: #888;
+  border-radius: 1px;
+  transition: background 0.15s ease, width 0.15s ease;
 }
+#tm-toc a.tm-h2::before { width: 20px; background: #aaa; }
+#tm-toc a.tm-h3::before { width: 12px; background: #c0c0c0; }
+#tm-toc a.tm-h4::before { width: 8px;  background: #d0d0d0; }
+#tm-toc a.tm-h2 { padding-left: 12px; }
+#tm-toc a.tm-h3 { padding-left: 22px; }
+#tm-toc a.tm-h4 { padding-left: 32px; }
+#tm-toc a.tm-active::before { background: #111; }
 
-@media (max-width: 1280px) {
+#tm-toc:hover a,
+#tm-toc:focus-within a {
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 4px 8px;
+  color: #555;
+}
+#tm-toc:hover a.tm-h1,
+#tm-toc:focus-within a.tm-h1 { padding-left: 8px; font-size: 13px; font-weight: 500; color: #333; }
+#tm-toc:hover a.tm-h2,
+#tm-toc:focus-within a.tm-h2 { padding-left: 18px; font-size: 12.5px; color: #555; }
+#tm-toc:hover a.tm-h3,
+#tm-toc:focus-within a.tm-h3 { padding-left: 30px; font-size: 12px; color: #777; }
+#tm-toc:hover a.tm-h4,
+#tm-toc:focus-within a.tm-h4 { padding-left: 42px; font-size: 11.5px; color: #888; }
+#tm-toc:hover a::before,
+#tm-toc:focus-within a::before { display: none; }
+#tm-toc:hover a:hover,
+#tm-toc:focus-within a:hover { color: #111; }
+#tm-toc a.tm-active { color: #111; }
+#tm-toc:hover a.tm-active,
+#tm-toc:focus-within a.tm-active { color: #111; font-weight: 600; }
+
+@media (max-width: 1024px) {
   #tm-toc { display: none; }
 }
 @media (prefers-color-scheme: dark) {
-  .tm-h1 .tm-bar { background: #6a6a6a; }
-  .tm-h2 .tm-bar { background: #555; }
-  .tm-h3 .tm-bar { background: #3f3f3f; }
-  .tm-h4 .tm-bar { background: #333; }
-  .tm-active .tm-bar { background: #fff; }
-  .tm-h1 .tm-label { color: #ddd; }
-  .tm-h2 .tm-label { color: #bbb; }
-  .tm-h3 .tm-label { color: #999; }
-  .tm-h4 .tm-label { color: #888; }
-  .tm-active .tm-label { color: #fff; }
+  #tm-toc { color: #ccc; }
+  #tm-toc:hover,
+  #tm-toc:focus-within {
+    background: transparent;
+    border-color: transparent;
+  }
+  #tm-toc a { color: #aaa; }
+  #tm-toc a::before { background: #6a6a6a; }
+  #tm-toc a.tm-h2::before { background: #555; }
+  #tm-toc a.tm-h3::before { background: #3f3f3f; }
+  #tm-toc a.tm-h4::before { background: #333; }
+  #tm-toc a.tm-active::before { background: #fff; }
+  #tm-toc:hover a:hover,
+  #tm-toc:focus-within a:hover { color: #fff; }
+  #tm-toc a.tm-active { color: #fff; }
 }
 </style>
 `.trim();
@@ -160,6 +173,10 @@ const TOC_SCRIPT = `
     var nav = document.createElement('nav');
     nav.id = 'tm-toc';
     nav.setAttribute('aria-label', '목차');
+    var title = document.createElement('div');
+    title.id = 'tm-toc-title';
+    title.textContent = '목차';
+    nav.appendChild(title);
 
     var ul = document.createElement('ul');
     var items = [];
@@ -168,14 +185,8 @@ const TOC_SCRIPT = `
       var li = document.createElement('li');
       var a = document.createElement('a');
       a.href = '#' + h.id;
+      a.textContent = h.textContent.trim();
       a.className = 'tm-' + h.tagName.toLowerCase(); // tm-h1 / tm-h2 / tm-h3 / tm-h4
-      var label = document.createElement('span');
-      label.className = 'tm-label';
-      label.textContent = h.textContent.trim();
-      var bar = document.createElement('span');
-      bar.className = 'tm-bar';
-      a.appendChild(label);
-      a.appendChild(bar);
       a.addEventListener('click', function (e) {
         e.preventDefault();
         var t = document.getElementById(h.id);
