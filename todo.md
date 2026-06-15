@@ -139,7 +139,7 @@ A 고쳐도 B 없으면 "깨진 이미지"로 바뀔 뿐 → B 가 A 와 동시 
   - depends: 실측: post.json `attachments` 모양 (블로커 B)
 - [x] **코드: update_post contentHtml 되박기 가드** — `fetch_post` 의 스킨 적용 `contentHtml` 을 그대로 PUT 하면 comment_group/관련글/만료 URL 이 본문에 박힘. update_post description·fetch_post hint 정정(되박기 권장 문구 제거) + 되박기 패턴(comment_group/관련글/만료URL 마커) 감지 시 중단
   - owns: `src/tools/update_post.ts`, `src/tools/fetch_post.ts`
-- [ ] **코드: update_post 태그 보존** — `tags` 미지정 시 `tag:""` fallback(현재 `update_post.ts:190`) 제거 → `fetch_post` 의 `entry.tags` 로 현재 태그 보존, 못 가져오면 clearTags 없이 기본 중단
+- [x] **코드: update_post 태그 보존** — `tags` 미지정 시 `tag:""` fallback(현재 `update_post.ts:190`) 제거 → `fetch_post` 의 `entry.tags` 로 현재 태그 보존, 못 가져오면 clearTags 없이 기본 중단
   - owns: `src/tools/update_post.ts`
   - depends: 코드: update_post contentHtml 되박기 가드
 - [x] **정정: fetch_post 부재 stale 주석 제거** — `fetch_post` 가 이미 존재하므로 `update_post.ts`(주석 line 10-11/62, description line 150)·`fetch_post.ts` 의 "fetch_post 가 아직 없음 / 준비 후" stale 문구 + plan.md 도구표 line 42 ("fetch_post 도구 준비 후") 정정
