@@ -134,7 +134,7 @@ A 고쳐도 B 없으면 "깨진 이미지"로 바뀔 뿐 → B 가 A 와 동시 
 
 - [x] **실측: post.json `attachments` 모양 (블로커 B)** — ✅ 2026-06-15 실 발행 캡처 완료 (`scripts/capture-publish-attach-xhr.ts --mode=interactive`, saree98). **결과: `attachments` 원소 = 치환자 kage 값과 글자 단위로 동일한 문자열** `kage@{key}/{filename}?{credential...&amp;signature...}` (서명 통째 포함, `&`→`&amp;`). 별도 finalize XHR 없음 — attachments 등록이 곧 finalize. bare `kage@{key}` 는 무서명 404 (이전 §5.3 가정 오류 확정). 에디터는 originWidth/Height 실픽셀 자동 채움(300×366). 공개 렌더 img src = 발행시점 서명 URL 그대로(재서명 미관찰, expires +15일 — 장기 영구는 t+15일 재확인 여지). fixture `docs/samples/publish-with-image-body.json` + `docs/api.md §5.3/§5.3.1` 정정 + `CLAUDE.md 함정 5` 정정 완료
   - owns: `docs/samples/`, `docs/api.md`
-- [ ] **코드: attachments 배선** — 위 실측 확정 모양대로 배선. `upload_image` 가 attachmentRef(키/객체) 반환 → `publish_post`/`update_post` 에 `attachments` 인자 추가 → fields 머지로 `PostBody.attachments` 주입. plan.md 도구표(upload_image/publish/update 행) 보강
+- [x] **코드: attachments 배선** — 위 실측 확정 모양대로 배선. `upload_image` 가 attachmentRef(키/객체) 반환 → `publish_post`/`update_post` 에 `attachments` 인자 추가 → fields 머지로 `PostBody.attachments` 주입. plan.md 도구표(upload_image/publish/update 행) 보강
   - owns: `src/tistory/api.ts`, `src/tools/upload_image.ts`, `src/tools/publish_post.ts`, `src/tools/update_post.ts`, `plan.md`
   - depends: 실측: post.json `attachments` 모양 (블로커 B)
 - [ ] **코드: update_post contentHtml 되박기 가드** — `fetch_post` 의 스킨 적용 `contentHtml` 을 그대로 PUT 하면 comment_group/관련글/만료 URL 이 본문에 박힘. update_post description·fetch_post hint 정정(되박기 권장 문구 제거) + 되박기 패턴(comment_group/관련글/만료URL 마커) 감지 시 중단
