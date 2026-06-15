@@ -6,6 +6,7 @@
  *   - UI 의 CM5 `setValue` 가 React state 미반영 → 빈 글 양산. 그래서 fetch 직접 호출
  *   - 마크다운 원본은 서버가 HTML 정규화로만 보관 → 발행 후 마크다운 source 사라짐 (description 명시)
  *   - visibility 인자는 사용자 친화 enum (`public`/`private`/`protected`) — 내부에서 정수 변환
+ *   - 본문 이미지는 `attachments` 인자(=upload_image 의 `attachmentRef`)를 같이 보내야 영구화 (docs/api.md §5.3.1)
  *
  * 등록 (`src/index.ts` 의 `server.registerTool`) 은 별도 도구 통합 todo 에서.
  */
@@ -76,6 +77,14 @@ const inputShape = {
     .boolean()
     .default(true)
     .describe("`true` = 즉시 발행, `false` = 임시저장 (추정)."),
+  attachments: z
+    .array(z.string().min(1))
+    .optional()
+    .describe(
+      "본문에 삽입한 이미지의 영구화 ref 배열. `tistory_upload_image` 응답의 `attachmentRef` 를 그대로 넣으세요. " +
+        "★ 본문 치환자의 kage 값과 글자 단위로 동일해야 하며, 누락 시 이미지가 GC 되어 404 로 깨집니다 (docs/api.md §5.3.1). " +
+        "이미지가 없으면 생략.",
+    ),
 } as const;
 
 type Input = {
@@ -89,6 +98,7 @@ type Input = {
   password?: string;
   slogan?: string;
   published: boolean;
+  attachments?: string[];
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -107,6 +117,7 @@ export function registerPublishPost(server: McpServer): void {
         "본문은 마크다운/HTML 모두 허용하지만, 서버는 HTML 로 정규화 저장하므로 " +
         "발행 후 마크다운 원본은 복원 불가입니다 (수정 시 다시 마크다운 작성 권장). " +
         "이 도구는 항상 신규 글을 만듭니다 — 수정은 `tistory_update_post` 사용. " +
+        "본문에 이미지를 삽입했다면 `tistory_upload_image` 가 준 `attachmentRef` 들을 `attachments` 인자에 함께 넘기세요 (누락 시 이미지 404). " +
         "세션 만료 시 `tistory_session_init` 재호출 안내 메시지를 반환합니다.",
       inputSchema: inputShape,
     },
@@ -126,6 +137,8 @@ export function registerPublishPost(server: McpServer): void {
           category: args.category ?? 0,
           tag: (args.tags ?? []).join(","),
           published: args.published ? 1 : 0,
+          // 이미지 영구화 — 미등록 시 orphan GC → 404 (docs/api.md §5.3.1)
+          ...(args.attachments !== undefined ? { attachments: args.attachments } : {}),
           // slogan/password 는 미지정 시 디폴트 ("") — 서버 자동 생성/토큰
           ...(args.slogan !== undefined ? { slogan: args.slogan } : {}),
           ...(args.password !== undefined ? { password: args.password } : {}),

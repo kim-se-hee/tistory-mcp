@@ -11,6 +11,7 @@
  *     **본문을 바꾸지 않을 거면 `content` 인자를 비워두지 말고 명시적으로 같이 보낼 것**
  *     (이 도구는 본문 미지정 시 빈 문자열로 PUT 하지 않고 사용자에게 경고 후 abort).
  *   - visibility 응답은 문자열 enum (PRIVATE/PROTECTED/PUBLIC) — `visibilityFromResponse` 변환
+ *   - 본문 이미지는 `attachments` 인자(=upload_image 의 `attachmentRef`)를 같이 보내야 영구화 (docs/api.md §5.3.1)
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -69,6 +70,14 @@ const inputShape = {
     .describe("새 공개 범위. 미지정 시 현재 값 유지."),
   password: z.string().optional().describe("`protected` 일 때 비밀번호."),
   slogan: z.string().optional().describe("새 URL slug."),
+  attachments: z
+    .array(z.string().min(1))
+    .optional()
+    .describe(
+      "수정 본문에 삽입한 이미지의 영구화 ref 배열. `tistory_upload_image` 응답의 `attachmentRef` 를 그대로 넣으세요. " +
+        "★ 본문 치환자의 kage 값과 글자 단위로 동일해야 하며, 누락 시 이미지가 GC 되어 404 로 깨집니다 (docs/api.md §5.3.1). " +
+        "본문 이미지를 그대로 유지/추가하려면 해당 ref 들을 모두 포함하세요.",
+    ),
 } as const;
 
 type Input = {
@@ -82,6 +91,7 @@ type Input = {
   visibility?: VisibilityName;
   password?: string;
   slogan?: string;
+  attachments?: string[];
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -148,6 +158,7 @@ export function registerUpdatePost(server: McpServer): void {
         "현재 메타를 `/manage/posts.json` 에서 fetch → 인자로 덮어쓴 뒤 full body PUT 합니다. " +
         "★ 본문(`content`)을 인자로 안 주면 서버가 빈 본문으로 덮어쓰므로 이 도구는 거부합니다. " +
         "메타만 바꾸려면 현재 본문을 따로 가져와 같이 보내세요 (fetch_post 도구 준비 후 권장). " +
+        "본문에 이미지를 삽입했다면 `tistory_upload_image` 가 준 `attachmentRef` 들을 `attachments` 인자에 함께 넘기세요 (누락 시 이미지 404). " +
         "마크다운 원본은 서버가 HTML 정규화로만 보관 — 수정 시 마크다운으로 재작성 권장.",
       inputSchema: inputShape,
     },
@@ -202,6 +213,8 @@ export function registerUpdatePost(server: McpServer): void {
             : { password: meta.postPassword }),
           // type 은 응답에 없음 — page 면 permalink 에 `/pages/` 가 있다 (docs/api.md §4)
           type: meta.permalink.includes("/pages/") ? "page" : "post",
+          // 본문 이미지 영구화 — 미등록 시 orphan GC → 404 (docs/api.md §5.3.1)
+          ...(args.attachments !== undefined ? { attachments: args.attachments } : {}),
         };
 
         const { entryUrl } = await updatePost(ctx, realId, fields);

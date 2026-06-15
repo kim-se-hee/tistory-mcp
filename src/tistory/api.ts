@@ -408,7 +408,11 @@ export interface PostBody {
   cclCommercial: 0 | 1;
   cclDerive: 0 | 1;
   type: "post" | "page";
-  attachments: unknown[];
+  /**
+   * 영구화할 이미지 ref 배열 (`buildAttachmentRef` 결과). 본문 치환자의 kage 값과 글자 단위 동일.
+   * 미등록 시 orphan → GC → 404 (docs/api.md §5.3.1). 이미지 없는 글은 `[]`.
+   */
+  attachments: string[];
   recaptchaValue: string;
   draftSequence: number | null;
   totalWritingTimeMs: number;
@@ -496,9 +500,12 @@ export async function deletePost(
 /** 이미지 업로드 응답 — docs/api.md §5.2. */
 export interface ImageUploadResponse {
   name: string;
-  /** 서명 URL — `expires` 약 5일. 만료 후 깨짐. 본문엔 박지 말고 `key` 로 치환자 만들 것. */
+  /**
+   * 서명 URL — `expires` 박힘 (실측 발행 +15일). 본문엔 직박 금지.
+   * 영구화 치환자/attachments 는 이 url 의 서명 query 까지 통째로 박는다 (`buildAttachmentRef`).
+   */
   url: string;
-  /** 영구 reference. `[##_Image|kage@{key}|CDM|1.3|{json}_##]` 의 `{key}`. */
+  /** kakao 자산 reference. 치환자엔 단독이 아니라 `key/{filename}?{서명query}` 형태로 박힘 (§5.3). */
   key: string;
   filename: string;
   size: number;
@@ -508,9 +515,10 @@ export interface ImageUploadResponse {
  * `POST /manage/post/attach.json` — 이미지 업로드 (multipart, field 이름 `file` 만 동작).
  * docs/api.md §5.
  *
- * ★ 응답 `url` 은 ~5일 후 만료. 영구 보관/본문 삽입은 `key` 로 치환자를 만들어라:
- *   `[##_Image|kage@{key}|CDM|1.3|{originWidth,originHeight,style,filename}_##]`
- *   `buildImageSubstitution` helper 참조.
+ * ★ 업로드만 하면 orphan → GC → 404. 영구화는 두 곳에 **서명 통째 포함 ref** 를 박아야 완성:
+ *   1) 본문 치환자: `[##_Image|{attachmentRef}|CDM|1.3|{json}_##]`
+ *   2) 발행 body `attachments`: `[attachmentRef]` (치환자 kage 값과 글자 단위 동일)
+ *   `buildAttachmentRef` → `buildImageSubstitution` helper 참조 (docs/api.md §5.3-5.3.1).
  */
 export async function uploadImage(
   ctx: TistoryContext,
@@ -555,25 +563,41 @@ export interface ImageSubstitutionMeta {
   originWidth: number;
   originHeight: number;
   style?: "alignCenter" | "alignLeft" | "alignRight" | "widthOrigin";
-  filename: string;
 }
 
 /**
- * 업로드 응답을 본문에 박을 영구 치환자로 변환. docs/api.md §5.3.
+ * 업로드 응답 → 영구화 ref `kage@{key}/{filename}?{서명query}`. docs/api.md §5.3-5.3.1.
  *
- * ★ `url` 은 만료되므로 직접 박지 말 것. 항상 이 helper 거쳐서 `key` 기반으로.
+ * ★ 이 문자열이 영구화의 단위. 본문 치환자의 kage 값과 발행 body `attachments[]` 원소가
+ * **글자 단위로 동일**해야 한다 (둘 다 이 함수 결과를 쓸 것). bare `kage@{key}` 는 무서명 404.
+ *
+ * 서명 query 는 attach.json 의 `url` 그대로 가져오되, post.json body 가 HTML 컨텍스트라
+ * `&` 를 `&amp;` 로 인코딩한다 (실측 fixture `publish-with-image-body.json`).
+ */
+export function buildAttachmentRef(upload: ImageUploadResponse): string {
+  // url 의 query (서명 포함) 만 추출 — host·`/dna/` path 는 버리고 kage@ prefix 로 치환
+  const search = new URL(upload.url).search; // 선두 '?' 포함
+  const encoded = search.replace(/&/g, "&amp;");
+  return `kage@${upload.key}/${upload.filename}${encoded}`;
+}
+
+/**
+ * 영구화 ref 를 본문에 박을 치환자로 감싼다. docs/api.md §5.3.
+ *
+ * @param attachmentRef `buildAttachmentRef` 결과. 발행 시 `attachments[]` 에도 동일 문자열 등록 필수.
+ *
+ * ★ 실 캡처 JSON 에는 `filename` 키 없음 — `originWidth/originHeight/style` 만 박는다.
  */
 export function buildImageSubstitution(
-  key: string,
+  attachmentRef: string,
   meta: ImageSubstitutionMeta,
 ): string {
   const json = JSON.stringify({
     originWidth: meta.originWidth,
     originHeight: meta.originHeight,
     style: meta.style ?? "alignCenter",
-    filename: meta.filename,
   });
-  return `[##_Image|kage@${key}|CDM|1.3|${json}_##]`;
+  return `[##_Image|${attachmentRef}|CDM|1.3|${json}_##]`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
