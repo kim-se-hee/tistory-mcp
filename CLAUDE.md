@@ -53,7 +53,7 @@ src/
 2. **CM5 `setValue` 가 React state 미반영.** UI 자동화로 본문 박으면 빈 글로 발행됨. 그래서 `publish_post` 는 `POST /manage/post.json` 직접 호출 (`docs/api.md §7.2`).
 3. **`POST /manage/post.json` 은 항상 신규.** body 의 `id` 도 query `?id=` 도 무시. 수정은 반드시 `PUT /manage/post/{id}.json` — path 의 `{id}` 가 진실 (`docs/api.md §4.1, §4.6`).
 4. **visibility 이중성.** request body = 정수 (`0` 비공개 / `15` 보호 / `20` 공개), `posts.json` response = 문자열 (`PRIVATE`/`PROTECTED`/`PUBLIC`). 도구 인자는 문자열 enum 받아 내부 변환 (`docs/api.md §4.3`).
-5. **이미지 응답 `url` 은 ~5일 만료.** 영구는 `key` 보존 + 본문에 치환자 박기: `[##_Image|kage@{key}|CDM|1.3|{json}_##]` (`docs/api.md §5.2-5.3`).
+5. **이미지 영구화 = 발행 body `attachments` 등록 + 서명 통째 치환자.** (2026-06-15 실 발행 캡처 정정.) 본문 치환자 kage 값에 **서명까지 통째** 박고 (`kage@{key}/{filename}?{credential...&amp;signature...}` — bare `kage@{key}` 는 무서명 404), **발행 `POST /manage/post.json` body 의 `attachments` 에 같은 문자열 등록** (미등록 = orphan → GC → 404). 둘 다 필요 (`docs/api.md §5.3-5.3.1`, fixture `docs/samples/publish-with-image-body.json`).
 6. **`preview/skin/{page}` 는 라이브 코드 기반.** body 에 html/css 안 받음. 변경된 코드 dry-run 하려면 `isPreview:false` 즉시 적용 → preview fetch → 백업 복구 trade-off (`docs/api.md §6.4`).
 7. **마크다운 원본 복원 불가.** 서버는 본문을 HTML 정규화만 보관. 발행 후 마크다운 source 사라짐 — 도구 명세에 명시 (`docs/api.md §4.4`).
 

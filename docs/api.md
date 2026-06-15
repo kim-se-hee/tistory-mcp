@@ -261,12 +261,12 @@ publish 인자 검증의 source of truth:
 {
   "id": "0",                       // POST 신규="0", PUT 수정="{id}" (둘 다 사실상 무시 — 진실은 URL path)
   "title": "글 제목",
-  "content": "본문 (마크다운 또는 HTML)",
+  "content": "본문 HTML (★ 서버는 마크다운 렌더 안 함 — MD 그대로 넣으면 기호 생노출. §4.5)",
   "slogan": "URL-slug",            // 빈문자열 → 서버 자동생성 (한글/em-dash 그대로, 띄어쓰기 -)
   "visibility": 0,                 // 0=비공개, 15=공개(보호), 20=공개
   "category": 0,                   // categoryId 정수, 0=카테고리없음
   "tag": "",                       // 콤마 구분 (추정)
-  "published": 1,                  // 1=발행, 0=임시저장 (추정)
+  "published": 1,                  // ★ 임시저장 토글 아님 — 0 이어도 실제 글 생성됨 (§4.5). 진짜 초안은 autosave 슬롯
   "password": "45NTk5OT",          // 보호글 비밀번호. 그 외엔 무관 토큰
   "uselessMarginForEntry": 1,
   "cclCommercial": 0,
@@ -345,6 +345,18 @@ async function deletePost(cookie, host, postId) {
 시도했으나 모두 SPA fallback 또는 400 (참고용):
 - `/manage/post/{id}.json` → 400 "잘못된 요청입니다."
 - `/manage/post.json?id={id}` → 200 SPA fallback HTML
+
+### 4.5 본문 HTML — 마크다운 미렌더 / 허용 범위 / published·category 실측 (2026-06-15)
+
+비공개 테스트글 발행 후 작성자 인증 뷰의 저장 본문을 캡처해 실측. (테스트글 발행 후 삭제)
+
+**(1) 마크다운 미렌더 ★** — 서버는 본문을 마크다운으로 렌더하지 **않는다**. `# 제목`, `**굵게**` 등을 그대로 넣으면 기호가 리터럴로 노출 (= "마크다운 생노출" 증상의 근본원인). 도구가 **MD→HTML 변환을 직접** 해서 넣어야 함. body 에 "마크다운 모드" 필드 없음.
+
+**(2) 허용 HTML — 매우 관대** — 작성자 본문 HTML 을 거의 그대로 보관. 통과 확인: `h1~h6`(+id), `p[data-ke-size]`, `strong/em/u/s/code`, `pre>code[class]`, `blockquote`, `ul/ol/li`, `table/thead/tbody/tr/th/td`, `figure[class]/figcaption/img[src,alt]`, `a[href,target,rel]`, `span[style]`, `div[class,data-*]`, `hr`, `iframe[src,width,height]`. 서버 보강: **헤딩에 auto `id` 부여** (id 없는 `<h3>` → `id="tm-h-1"` — 목차 스크립트가 이걸로 동작), `pre>code` 에 hljs 하이라이트 + 복사버튼 주입, `rel="noopener"` → `noopener noreferrer`, iframe 에 `frameborder`/`allowfullscreen` 보강. 주의: `<script>`/`onclick` 도 작성자 뷰 저장본엔 남음 (공개 렌더 sanitize 여부는 별도 미검증) — 우리 도구는 어차피 안전 HTML 만 생성.
+
+**(3) `published` 매핑** — body `published:0` 으로 발행해도 **임시저장(초안)이 되지 않음**. `visibility:private` 기준 `published:0`(글 27) 과 `published:1`(글 26) 둘 다 `statusLabel:"비공개글"` + 실 permalink + 발행 타임스탬프로 동일하게 생성. 즉 post.json 은 항상 실제 글 생성, `published` 인자는 초안 토글이 아님. 진짜 임시저장은 `/manage/autosave` 슬롯(별도 경로).
+
+**(4) category 0 노출** — 공개(`visibility:public`) + `category:0`(카테고리 없음) 글은 익명 접근 200 + 블로그 index 에 정상 노출 (홈 피드 표시). 카테고리 0 = 숨김 아님, "카테고리 그룹 미지정"일 뿐.
 - `/manage/post/get/{id}.json`, `/manage/api/post/{id}` → SPA fallback
 
 수정 페이지 (`/manage/newpost/{id}`) 진입 시 글은 **기본모드 (Tiny iframe)** 로 열림 — 마크다운 CM 인스턴스는 빈 상태. 티스토리는 글의 작성 모드 메타를 저장하지 않거나 항상 HTML 로 정규화 보관.
@@ -390,48 +402,64 @@ async function uploadImage(cookie, host, filePath, { filename, mime = 'image/png
 }
 ```
 
-### 5.2 응답 — 서명된 임시 URL + 영구 key
+### 5.2 응답 — 서명된 URL + key + filename
 
 ```json
 {
-  "name": "tmp-1x1.png",
+  "name": "image.png",
   "url": "https://blog.kakaocdn.net/dna/{prefix}/{shortId}/{longHash}/img.png?credential={cred}&expires={epoch}&allow_ip=&allow_referer=&signature={sig}",
   "key": "{prefix}/{shortId}/{longHash}",
   "filename": "img.png",
-  "size": 68
+  "size": 1331
 }
 ```
 
-- `url` — 서명 URL. `expires` 약 5일 (실측 `expires=1780239599` = 2026-05-30). 그대로 본문에 박으면 만료 후 깨질 가능성
-- `key` — **영구 reference**. 티스토리 자체 치환자 (§5.3) 가 이걸 사용. 도구는 **`key` 를 보존**할 것
+- `url` — 서명 URL. `expires` 박혀 있음 (실측 2026-06-15: 발행 +15일). **업로드만 하고 발행에 안 엮으면 orphan 자산으로 GC** → 만료 후 404.
+- `key` — kakao 자산 reference. **단, 치환자에 박을 때 `key` 단독이 아니라 `key/{filename}` + 서명 query 가 필요** (§5.3). `key` 만으로는 무서명 → 렌더 시 404.
+- `filename` — `key` 에 붙는 파일명 segment. url path = `/dna/{key}/{filename}`.
 - `allow_ip` / `allow_referer` 빈 문자열 — 누구나 인증 없이 fetch 가능
 
-### 5.3 본문 삽입 형식 — 티스토리 치환자 ★
+### 5.3 본문 삽입 형식 — 티스토리 치환자 ★ (2026-06-15 실 발행 캡처로 정정)
 
-UI 는 `<figure>...<img src={서명 url}>...</figure>` 를 박지만, **자동저장 슬롯의 `content` 를 보면 서버는 치환자로 저장**:
+★ **이전 문서는 `kage@{key}` (bare key, "expires 무관 영구") 로 적었으나 이는 틀림.** 실 에디터가 발행하는 `POST /manage/post.json` body 를 캡처한 결과, 치환자의 kage 값은 **`attach.json` url 의 서명까지 통째로 포함**한다. fixture: `docs/samples/publish-with-image-body.json`.
+
+치환자 한 개 = `[##_Image|{kageRef}|CDM|1.3|{json}_##]`, 여기서:
 
 ```
-[##_Image|kage@{key}|CDM|1.3|{"originWidth":1,"originHeight":1,"style":"alignCenter","filename":"tmp-1x1.png"}_##]
+kageRef = "kage@" + {key} + "/" + {filename} + "?" + {url 의 query 그대로}
+          (단 '&' 는 '&amp;' 로 HTML 인코딩)
+```
+
+실측 예 (key=`GCKMW/.../AUQHwfK`, filename=`img.png`):
+```
+[##_Image|kage@GCKMW/.../AUQHwfK/img.png?credential={cred}&amp;expires={epoch}&amp;allow_ip=&amp;allow_referer=&amp;signature={sig}|CDM|1.3|{"originWidth":300,"originHeight":366,"style":"alignCenter"}_##]
 ```
 
 구조:
 - `kage@` — kakao image storage prefix
-- `{key}` — 응답의 `key` 그대로
+- 그 뒤 — `url` 의 path (`/dna/` 제외) + `?` + query. 즉 서명 URL 의 host·`/dna/` 만 떼고 `kage@` 로 치환한 형태
 - `CDM|1.3` — placeholder 메타 (의미 미확정)
-- JSON — `originWidth`, `originHeight`, `style` (`alignCenter` / `alignLeft` / `alignRight` / `widthOrigin`), `filename`
+- JSON — `originWidth`/`originHeight` (**에디터는 실제 픽셀 dimension 자동 채움**, 실측 300×366), `style` (`alignCenter`/`alignLeft`/`alignRight`/`widthOrigin`). 실 캡처에는 `filename` 키 없음
 
-★ **도구는 본문에 이 치환자 형식을 박을 것**:
-- 영구 (key 기반, expires 무관)
-- 티스토리 렌더 파이프라인이 알아서 처리 (CDN, lazy load, 정렬 등)
+### 5.3.1 attachments — 발행 시 필수 (영구화 메커니즘) ★
 
-자동저장 `thumbnail` 필드도 동일 패턴 (`kage@{key}?...`).
+`POST /manage/post.json` (및 autosave) body 의 `attachments` 배열에 **위 `kageRef` 와 글자 단위로 동일한 문자열**을 넣어야 한다 (content 의 kage 값 == `attachments[0]`).
+
+```json
+"attachments": ["kage@{key}/{filename}?{credential...&amp;signature...}"]
+```
+
+- **이게 영구화의 핵심.** 발행 시 attachments 에 등록해야 kage 자산이 글에 귀속(finalize)되어 보존됨. 미등록 시 orphan → GC → 404 (= "이미지 깨짐" 증상의 근본원인).
+- 현 도구는 `attachments: []` 고정 + 치환자도 bare key 라 **이중으로 틀려서** 이미지가 깨졌음.
+- 영구성 주의: 발행 후 공개페이지 렌더 `<img src>` 는 **발행 시점 서명 URL 그대로** (재서명 미관찰, expires +15일). 장기 영구 여부(만료 후 재서명)는 t+15일 재확인 필요 — 단 attachments 등록이 platform 정상 경로이므로 finalize 자체는 확정.
 
 ### 5.4 워크플로우
 
 ```
-1) uploadImage(path) → { key, url }
-2) content 의 placeholder (예: ![](_img1)) 를 [##_Image|kage@{key}|CDM|1.3|{...}_##] 로 치환
-3) publishPost({ content, ... })
+1) uploadImage(path) → { url, key, filename }
+2) kageRef = "kage@" + key + "/" + filename + url.search   // '&' → '&amp;'
+3) content 의 placeholder → [##_Image|{kageRef}|CDM|1.3|{originWidth,originHeight,style}]
+4) publishPost({ content, attachments: [kageRef], ... })   // ★ attachments 필수
 ```
 
 ---
@@ -678,7 +706,7 @@ Monaco 언어 `tistory-skin-html` 토큰:
 - `password` 필드는 항상 채워져있음 (보호글 외엔 무관 토큰)
 
 ### 이미지 (§5)
-- 응답 `url` 은 서명 URL (~5일 만료). 영구 보관하려면 `key` 로 `[##_Image|kage@{key}|...|_##]` 치환자 사용
+- 응답 `url` 은 서명 URL (expires 박힘). 영구화는 ★ **발행 body 의 `attachments` 에 `kageRef` 등록** + 본문 치환자에 **서명 통째 포함** (`kage@{key}/{filename}?{query}`, `&`→`&amp;`). bare `kage@{key}` 는 무서명 → 404 (§5.3 실측 정정). 업로드만 하고 attachments 미등록 시 orphan → GC → 404
 - attach.json field 이름은 `file` 만 동작
 - 마크다운 모드에서 KEditor 첨부 UI 는 native picker 만 — 자동화 시 fetch 직접
 

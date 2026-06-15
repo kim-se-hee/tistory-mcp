@@ -1,0 +1,31 @@
+{
+  "_note": "실측 2026-06-15 saree98.tistory.com. 에디터로 이미지 1장 삽입 후 비공개 발행. POST /manage/post.json body + attach.json 응답.",
+  "_recipe": {
+    "attachmentRef": "kage@{key}/{filename}?{signedQuery}  (attach.json url 의 query 그대로, & -> &amp; 인코딩)",
+    "contentSubstitution": "[##_Image|{attachmentRef}|CDM|1.3|{json}_##]",
+    "attachments": "[attachmentRef]  (content 의 kage 값과 글자 단위로 동일)",
+    "json": "{originWidth,originHeight,style}; 에디터는 실제 픽셀 dimension 자동 채움 (실측 300x366), style=alignCenter|alignLeft|alignRight|widthOrigin",
+    "permanence": "발행 시 attachments 에 등록해야 kage 자산이 글에 finalize. 미등록 orphan -> GC -> 404. 공개 렌더 img src 는 발행시점 서명 URL 그대로(재서명 미관찰, expires +15일)."
+  },
+  "attachResponse": {
+    "name": "image.png",
+    "url": "https://blog.kakaocdn.net/dna/GCKMW/dJMcadvw3eW/AAAAAAAAAAAAAAAAAAAAAD3SsJ6nmmOuRtmxp5klQvEB1ruQPiJvf6zK_AUQHwfK/img.png?credential=yqXZFxpELC7KVnFOS48ylbz2pIh7yKj8&expires=1782831599&allow_ip=&allow_referer=&signature=92zGZ2jkP0uItGDE23Ur23t99j8%3D",
+    "key": "GCKMW/dJMcadvw3eW/AAAAAAAAAAAAAAAAAAAAAD3SsJ6nmmOuRtmxp5klQvEB1ruQPiJvf6zK_AUQHwfK",
+    "filename": "img.png",
+    "size": 1331
+  },
+  "postJsonBody": {
+    "title": "TEMP-실측-이미지",
+    "content": "[##_Image|kage@GCKMW/dJMcadvw3eW/AAAAAAAAAAAAAAAAAAAAAD3SsJ6nmmOuRtmxp5klQvEB1ruQPiJvf6zK_AUQHwfK/img.png?credential=yqXZFxpELC7KVnFOS48ylbz2pIh7yKj8&amp;expires=1782831599&amp;allow_ip=&amp;allow_referer=&amp;signature=92zGZ2jkP0uItGDE23Ur23t99j8%3D|CDM|1.3|{\"originWidth\":300,\"originHeight\":366,\"style\":\"alignCenter\"}_##]<p>(본문 텍스트 생략)</p>",
+    "visibility": 0,
+    "category": 0,
+    "tag": "",
+    "published": 1,
+    "type": "post",
+    "attachments": [
+      "kage@GCKMW/dJMcadvw3eW/AAAAAAAAAAAAAAAAAAAAAD3SsJ6nmmOuRtmxp5klQvEB1ruQPiJvf6zK_AUQHwfK/img.png?credential=yqXZFxpELC7KVnFOS48ylbz2pIh7yKj8&amp;expires=1782831599&amp;allow_ip=&amp;allow_referer=&amp;signature=92zGZ2jkP0uItGDE23Ur23t99j8%3D"
+    ],
+    "draftSequence": null,
+    "totalWritingTimeMs": 108499
+  }
+}
