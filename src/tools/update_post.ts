@@ -19,6 +19,7 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { load } from "cheerio";
 import { z } from "zod";
 
 import {
@@ -34,6 +35,7 @@ import {
 } from "../tistory/api.js";
 import { loadContext } from "../tistory/browser.js";
 import { renderContent, type ContentFormat } from "../tistory/markdown.js";
+import { PublicFetchError } from "../tistory/scraper.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 입력 스키마
@@ -80,7 +82,16 @@ const inputShape = {
         "어느 쪽이든 이미지 치환자는 보존됩니다.",
     ),
   category: z.number().int().nonnegative().optional().describe("새 categoryId."),
-  tags: z.array(z.string().min(1)).optional().describe("새 태그 배열 (전체 교체)."),
+  tags: z
+    .array(z.string().min(1))
+    .optional()
+    .describe(
+      "새 태그 배열 (전체 교체). " +
+        "★ 생략(미지정)하면 현재 글의 태그를 공개 페이지에서 긁어 그대로 보존합니다 " +
+        "(빈 문자열로 덮어써 태그를 날리지 않음). 보존을 못 하면(비공개/보호글 등 공개 조회 실패) " +
+        "조용히 비우지 않고 거부합니다 — 그 경우 현재 태그를 직접 넘기거나, 정말 비우려면 빈 배열 `[]` 을 보내세요. " +
+        "빈 배열 `[]` = 명시적 태그 비우기.",
+    ),
   visibility: z
     .enum(["public", "private", "protected"])
     .optional()
@@ -197,6 +208,41 @@ async function findPostMeta(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 태그 보존 — `tags` 미지정 시 현재 글의 태그를 공개 페이지에서 긁어 그대로 유지
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * PUT body 는 full body 라 `tag` 를 빈 문자열로 보내면 기존 태그가 통째로 날아간다.
+ * `/manage/posts.json` 응답엔 태그가 없어서 (PostListItem 에 tag 필드 없음) 메타로는
+ * 복원할 수 없다. 그래서 `fetch_post` 와 동일한 경로 — 공개 글 페이지의
+ * `a[rel="tag"]` 마이크로포맷 — 으로 현재 태그를 긁는다.
+ *
+ * fetch_post.ts 의 태그 추출 로직은 모듈 private 라 호출 불가 → owns 위반 없이
+ * 같은 셀렉터를 여기서 재구성한다 (cheerio 는 이미 의존성).
+ */
+async function scrapeCurrentTags(postUrl: string): Promise<string[]> {
+  const res = await fetch(postUrl, {
+    headers: {
+      "user-agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36",
+      accept: "text/html,application/xhtml+xml",
+    },
+    redirect: "follow",
+  });
+  if (!res.ok) {
+    throw new PublicFetchError(`GET ${postUrl} → ${res.status}`, res.status, postUrl);
+  }
+  const $ = load(await res.text());
+  // fetch_post 와 동일: HTML5 표준 마이크로포맷. 티스토리 스킨이 `a[rel="tag"]` 로 렌더.
+  const tags: string[] = [];
+  $('a[rel="tag"]').each((_, el) => {
+    const text = $(el).text().trim();
+    if (text && !tags.includes(text)) tags.push(text);
+  });
+  return tags;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 도구 등록
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -294,8 +340,36 @@ export function registerUpdatePost(server: McpServer): void {
           : undefined;
         const visibility: VisibilityName = (args.visibility ??
           currentVisibility) as VisibilityName;
-        const tag =
-          args.tags != null ? args.tags.join(",") : ""; /* posts.json 응답에 tag 없음 — 빈 문자열 fallback */
+
+        // 태그 처리 — PUT 은 full body 라 tag 를 안 채우면 기존 태그가 날아간다.
+        //   - tags 명시(빈 배열 포함): 인자가 진실. `[]` = 명시적 비우기.
+        //   - tags 미지정: 현재 글의 태그를 공개 페이지에서 긁어 보존. 못 긁으면 abort
+        //     (비공개/보호글이면 공개 조회가 4xx — 조용히 빈 태그로 덮으면 태그 손실).
+        let tag: string;
+        if (args.tags != null) {
+          tag = args.tags.join(",");
+        } else {
+          // 공개 URL 우선순위: 사용자 postUrl → 메타 permalink → host/{realId}.
+          const publicUrl =
+            args.postUrl ?? meta?.permalink ?? `https://${ctx.host}/${realId}`;
+          try {
+            const current = await scrapeCurrentTags(publicUrl);
+            tag = current.join(",");
+          } catch (err) {
+            const reason =
+              err instanceof PublicFetchError
+                ? `공개 조회 실패 (HTTP ${err.status})`
+                : err instanceof Error
+                  ? err.message
+                  : String(err);
+            return errorText(
+              `tags 를 생략했지만 현재 태그를 보존할 수 없어 중단합니다 (${reason}: ${publicUrl}). ` +
+                `PUT 은 full body 라 여기서 빈 태그로 진행하면 기존 태그가 통째로 사라집니다. ` +
+                `비공개/보호글이라 공개 조회가 막혔을 수 있습니다. ` +
+                `유지할 태그를 \`tags\` 인자로 직접 넘기거나, 정말 태그를 비우려면 빈 배열 \`tags: []\` 을 보내세요.`,
+            );
+          }
+        }
 
         // 되박기 가드(위)는 raw 입력에 대해 수행 — 마커가 스킨 렌더 산물이라 변환 전에 잡아야 함.
         // 통과한 뒤 contentFormat 에 따라 변환/sanitize (docs/api.md §4.5). 이미지 치환자는 보존됨.
@@ -340,9 +414,9 @@ export function registerUpdatePost(server: McpServer): void {
                   (currentVisibility !== undefined && visibility !== currentVisibility
                     ? ` (← ${currentVisibility})`
                     : ""),
-                args.tags != null ? `tags: ${args.tags.join(", ") || "(없음)"}` : "",
-                `※ 태그는 응답 메타에 없어 인자 미지정 시 빈 문자열로 덮어쓰입니다. ` +
-                  `현재 태그를 유지하려면 같이 보내세요.`,
+                args.tags != null
+                  ? `tags: ${tag || "(비움)"}`
+                  : `tags: ${tag || "(없음)"} (현재 태그 보존)`,
               ]
                 .filter(Boolean)
                 .join("\n"),
