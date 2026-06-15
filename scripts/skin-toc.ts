@@ -5,14 +5,20 @@
  *   tsx scripts/skin-toc.ts backup   <host>            → .skin-backup/{ts}/ 에 html/css/info 저장
  *   tsx scripts/skin-toc.ts analyze  <host>            → 최신 백업 분석 → 본문 selector 후보 출력
  *   tsx scripts/skin-toc.ts preview  <host>            → 백업 + TOC 패치 후 isPreview:true 로 dry-run, preview URL 출력
- *   tsx scripts/skin-toc.ts apply    <host>            → 최신 백업의 patched.html/css 를 isPreview:false 로 라이브 적용
+ *   tsx scripts/skin-toc.ts apply    <host>            → 백업 강제 후 patched.html/css 를 isPreview:false 로 라이브 적용
  *   tsx scripts/skin-toc.ts restore  <host> <backupDir>→ 지정 백업의 원본 html/css 를 isPreview:false 로 복원
+ *   tsx scripts/skin-toc.ts sync-from-live <host>      → 라이브 마커 블록을 떠와 스크립트 상수와 비교/역동기화 안내
  *
  * 백업 디렉토리: `.skin-backup/<host>/<ISO ts>/` 안에 `original.html`, `original.css`,
  * `patched.html`, `info.json` 4개. apply 는 최신 디렉토리의 `patched.*` 를 박는다.
  *
+ * 드리프트 가드: 주입하는 TOC 블록의 SHA-256 을 상수로 스탬프해 두고, apply 직전
+ * `patched.html` 의 블록 해시와 대조한다. 라이브가 스크립트 상수와 어긋나면(누군가 손댐)
+ * 즉시 멈춘다. 라이브를 진실로 삼아 상수를 갱신하려면 `sync-from-live` 로 블록을 떠온다.
+ *
  * 이 스크립트는 src/ 밖이라 tsc 빌드 대상이 아니다 — tsx 로만 실행.
  */
+import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile, stat } from "node:fs/promises";
 import path from "node:path";
 
@@ -226,6 +232,27 @@ const TOC_MARKER_END = "<!-- tistory-mcp:toc-end -->";
 const TOC_BLOCK = `${TOC_MARKER_BEGIN}\n${TOC_STYLE}\n${TOC_SCRIPT}\n${TOC_MARKER_END}`;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 드리프트 가드 — 블록 해시
+// ─────────────────────────────────────────────────────────────────────────────
+
+function sha256(s: string): string {
+  return createHash("sha256").update(s, "utf8").digest("hex");
+}
+
+/** 스크립트가 주입할 블록의 기준 해시. 모든 대조의 진실. */
+const TOC_BLOCK_HASH = sha256(TOC_BLOCK);
+
+/**
+ * 임의 HTML 에서 마커 사이 블록을 통째 추출(마커 포함). 없으면 null.
+ * 라이브/patched 의 실제 블록을 떠와 기준과 대조하기 위한 것.
+ */
+function extractTocBlock(html: string): string | null {
+  const re = new RegExp(`${escapeRe(TOC_MARKER_BEGIN)}[\\s\\S]*?${escapeRe(TOC_MARKER_END)}`);
+  const m = re.exec(html);
+  return m ? m[0] : null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 패치 / 백업 헬퍼
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -286,6 +313,7 @@ async function doBackup(host: string): Promise<{ dir: string; skin: SkinSource }
   const skin = await getSkin(ctx);
   const ts = nowStamp();
   const dir = await backupDir(host, ts);
+  const liveBlock = extractTocBlock(skin.html);
   await writeFile(path.join(dir, "original.html"), skin.html, "utf8");
   await writeFile(path.join(dir, "original.css"), skin.css, "utf8");
   await writeFile(
@@ -298,6 +326,10 @@ async function doBackup(host: string): Promise<{ dir: string; skin: SkinSource }
         files: skin.files,
         htmlBytes: Buffer.byteLength(skin.html, "utf8"),
         cssBytes: Buffer.byteLength(skin.css, "utf8"),
+        // 드리프트 스탬프: 백업 당시 라이브에 박힌 블록 해시 + 스크립트 기준 해시.
+        // 둘이 다르면 백업 시점부터 이미 라이브가 상수와 어긋나 있었다는 기록.
+        liveTocBlockHash: liveBlock ? sha256(liveBlock) : null,
+        scriptTocBlockHash: TOC_BLOCK_HASH,
       },
       null,
       2,
@@ -339,6 +371,7 @@ async function doAnalyze(host: string): Promise<void> {
 async function doPreview(host: string): Promise<void> {
   const { dir, skin } = await doBackup(host);
   const patched = injectToc(skin.html);
+  assertPatchBlock(patched);
   await writeFile(path.join(dir, "patched.html"), patched, "utf8");
   await writeFile(path.join(dir, "patched.css"), skin.css, "utf8");
   console.log(`백업 + 패치 저장: ${dir}`);
@@ -348,15 +381,73 @@ async function doPreview(host: string): Promise<void> {
 }
 
 async function doApply(host: string): Promise<void> {
-  const dir = await latestBackup(host);
-  if (!dir) throw new Error(`No backup for ${host}. Run \`preview\` first.`);
-  const html = await readFile(path.join(dir, "patched.html"), "utf8").catch(() => null);
-  const css = await readFile(path.join(dir, "patched.css"), "utf8").catch(() => null);
-  if (!html || !css) throw new Error(`patched.* not found in ${dir}. Run \`preview\` first.`);
+  // 백업 강제: 라이브를 덮기 전 반드시 직전 상태를 떠 둔다(롤백 안전망).
+  // 기존 preview 백업에 의존하지 않고 매 apply 마다 fresh 백업을 만든 뒤 그 위에서 패치한다.
+  const { dir, skin } = await doBackup(host);
+  const patched = injectToc(skin.html);
+  await writeFile(path.join(dir, "patched.html"), patched, "utf8");
+  await writeFile(path.join(dir, "patched.css"), skin.css, "utf8");
+
+  // 드리프트 가드: 적용하려는 블록이 스크립트 기준과 일치하는지 확인.
+  // injectToc 가 항상 TOC_BLOCK 을 박으므로 일치가 정상. 어긋나면 추출/escape 로직 버그.
+  assertPatchBlock(patched);
+
+  // 라이브에 기존 블록이 있었다면, 그 블록이 기준과 달랐는지(=누군가 손댐) 경고.
+  const liveBlock = extractTocBlock(skin.html);
+  if (liveBlock && sha256(liveBlock) !== TOC_BLOCK_HASH) {
+    console.warn(
+      "⚠️  라이브 TOC 블록이 스크립트 상수와 다릅니다(드리프트). " +
+        "apply 는 스크립트 블록으로 덮습니다. 라이브를 진실로 삼으려면 먼저 " +
+        `\`sync-from-live ${host}\` 로 상수를 갱신하세요.`,
+    );
+  }
+
   const ctx = await ctxOrDie(host);
-  const out = await applySkin(ctx, { html, css, isPreview: false });
+  const out = await applySkin(ctx, { html: patched, css: skin.css, isPreview: false });
   console.log(`LIVE applied. server returned: ${out}`);
   console.log(`복원하려면: tsx scripts/skin-toc.ts restore ${host} "${dir}"`);
+}
+
+/** 적용 직전 patched.html 의 마커 블록이 기준 해시와 일치하는지 검증. 어긋나면 중단. */
+function assertPatchBlock(patched: string): void {
+  const block = extractTocBlock(patched);
+  if (!block) {
+    throw new Error("patched.html 에 TOC 마커 블록이 없습니다. injectToc 동작 확인 필요.");
+  }
+  const got = sha256(block);
+  if (got !== TOC_BLOCK_HASH) {
+    throw new Error(
+      `패치 블록 해시 불일치: expected ${TOC_BLOCK_HASH}, got ${got}. ` +
+        "injectToc / 마커 추출 로직이 어긋났습니다.",
+    );
+  }
+}
+
+/**
+ * 라이브 마커 블록을 떠와 스크립트 상수와 비교한다.
+ * 일치하면 동기화 상태 OK. 다르면 라이브 블록 전문을 출력해 상수 역동기화(수동 paste)를 돕는다.
+ */
+async function doSyncFromLive(host: string): Promise<void> {
+  const ctx = await ctxOrDie(host);
+  const skin = await getSkin(ctx);
+  const liveBlock = extractTocBlock(skin.html);
+  console.log(`# sync-from-live: ${host}`);
+  console.log(`script TOC_BLOCK hash: ${TOC_BLOCK_HASH}`);
+  if (!liveBlock) {
+    console.log("라이브에 TOC 마커 블록이 없습니다 — 동기화할 대상 없음.");
+    return;
+  }
+  const liveHash = sha256(liveBlock);
+  console.log(`live   TOC block hash: ${liveHash}`);
+  if (liveHash === TOC_BLOCK_HASH) {
+    console.log("✅ 동기화 상태: 라이브 블록 == 스크립트 상수. 할 일 없음.");
+    return;
+  }
+  console.log("⚠️  드리프트 감지: 라이브 블록이 스크립트 상수와 다릅니다.");
+  console.log("아래 라이브 블록 전문을 기준 삼아 TOC_STYLE/TOC_SCRIPT 상수를 갱신하세요.");
+  console.log("--- LIVE TOC BLOCK BEGIN ---");
+  console.log(liveBlock);
+  console.log("--- LIVE TOC BLOCK END ---");
 }
 
 async function doRestore(host: string, backupDir: string): Promise<void> {
@@ -375,7 +466,7 @@ async function main() {
   const [cmd, host, arg2] = process.argv.slice(2);
   if (!cmd || !host) {
     console.error(
-      "usage: tsx scripts/skin-toc.ts <backup|analyze|preview|apply|restore> <host> [backupDir]",
+      "usage: tsx scripts/skin-toc.ts <backup|analyze|preview|apply|restore|sync-from-live> <host> [backupDir]",
     );
     process.exit(2);
   }
@@ -395,6 +486,8 @@ async function main() {
       if (!arg2) throw new Error("restore requires <backupDir>");
       return doRestore(host, arg2);
     }
+    case "sync-from-live":
+      return doSyncFromLive(host);
     default:
       console.error(`unknown command: ${cmd}`);
       process.exit(2);
