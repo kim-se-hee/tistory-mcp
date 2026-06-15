@@ -178,7 +178,7 @@ A 고쳐도 B 없으면 "깨진 이미지"로 바뀔 뿐 → B 가 A 와 동시 
 
 ### Phase 5 별도 세션 — 스킨 TOC 드리프트 (라이브는 1024 복원 완료)
 
-- [ ] **레포: skin-toc TOC 블록 라이브 동기화** — `scripts/skin-toc.ts` 의 `TOC_STYLE`/`TOC_SCRIPT` 를 라이브 백업 블록으로 통째 교체(CSS+JS 동시, 폭 1280→1024). 목차 미표시 부차요인(헤딩 폭 규칙) 해소
+- [x] **레포: skin-toc TOC 블록 라이브 동기화** — `scripts/skin-toc.ts` 의 `TOC_STYLE`/`TOC_SCRIPT` 를 라이브 백업 블록으로 통째 교체(CSS+JS 동시, 폭 1280→1024). 목차 미표시 부차요인(헤딩 폭 규칙) 해소
   - owns: `scripts/skin-toc.ts`
 - [ ] **레포: skin-toc 드리프트 가드** — 마커 해시 스탬프 + apply 직전 `patched.html` 블록 해시 비교 + `doApply` 에 `doBackup` 강제 + `sync-from-live` 서브커맨드
   - owns: `scripts/skin-toc.ts`
