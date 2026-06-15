@@ -974,7 +974,7 @@ export async function previewSkin(
 
 /**
  * `/manage/category.json` GET 응답의 트리 노드. 재귀 구조.
- * docs/api.md §3.3.
+ * docs/api.md §3.3, §3.6.1.
  *
  * - `id` — categoryId 정수. 신규는 `-1` (응답엔 안 박힘 — request 전용)
  * - `name` — 현재 이름
@@ -982,12 +982,14 @@ export async function previewSkin(
  * - `priority` — 같은 부모 안에서의 순서 (0-based)
  * - `entries` — 카테고리에 속한 글 수. > 0 이면 UI 가 삭제 disable
  * - `visibility` — 정수 enum (0/15/20, §4.3 와 동일)
- * - `parent` — 0 = 루트, 아니면 부모 categoryId
  * - `viewChannel` — 홈주제 id (string) 또는 null
- * - `depth` — 1 = 루트, 2 = 하위
  * - `leaf` — children 비었으면 true
- * - `opened` — UI 펼침 상태 (PUT 시에도 그대로 박는다)
  * - `categoryInfo` — `{ liststyle, image, description }` (관리 화면용)
+ * - `children` — 하위 노드. **계층은 이 nesting 으로만 표현** (§3.6.1)
+ *
+ * ★ GET 응답 노드엔 `parent` / `depth` / `opened` 가 **없다** (§3.6.1 실측).
+ *   이 세 필드는 PUT 입력 전용 — 다시 GET 하면 안 옴. 따라서 optional 로 두되
+ *   계층 정보는 children nesting 과 트리 내 위치에서 재구성한다 (직접 읽지 말 것).
  */
 export interface CategoryNode {
   id: number;
@@ -996,13 +998,16 @@ export interface CategoryNode {
   priority: number;
   entries: number;
   visibility: VisibilityInt;
-  parent: number;
   viewChannel: string | null;
-  depth: number;
   leaf: boolean;
-  opened: boolean;
   categoryInfo: { liststyle?: string; image?: string; description?: string };
   children: CategoryNode[];
+  /** ★ PUT 입력 전용 — GET 응답엔 없음 (§3.6.1). */
+  parent?: number;
+  /** ★ PUT 입력 전용 — GET 응답엔 없음 (§3.6.1). */
+  depth?: number;
+  /** ★ PUT 입력 전용 — GET 응답엔 없음 (§3.6.1). */
+  opened?: boolean;
   /** 알려지지 않은 필드는 통과 (서버가 추가 필드 박을 수 있음). */
   [key: string]: unknown;
 }
@@ -1033,7 +1038,7 @@ export async function getCategories(
 }
 
 /**
- * `PUT /manage/category.json` body — 3-array diff. docs/api.md §3.6.
+ * `PUT /manage/category.json` body — 3-array diff. docs/api.md §3.6, §3.6.1.
  *
  * **함정:**
  *   - `delete` 는 **id 정수 배열만**. 객체 보내면 500
@@ -1041,6 +1046,12 @@ export async function getCategories(
  *   - `update` 는 `label` 필드에 **변경 전 이름** 보존, `updatedData: false`
  *   - UI 흐름 관찰: 신규 추가 시 `append` 와 `update` 두 배열에 같은 객체가 동시 등장 —
  *     도구 구현도 동일하게 미러링 (서버 검증 정확한 트리거 미실측, safer)
+ *
+ * **하위 카테고리 (§3.6.1 실측) — 세 가지가 동시에 필요:**
+ *   1. `append[]` 에 자식 객체 `{ id:-1, parent:<부모id>, ... }`
+ *   2. `update[]` 의 부모 노드 `children` 에 같은 신규 객체(`id:-1`) 중첩 미러
+ *   3. 부모 노드 `leaf:false`
+ *   append 객체의 `children` 에만 자식을 넣는 방식은 실패 (부모만 생기고 자식 무시).
  */
 export interface CategoryPutBody {
   rootLabel: string;
@@ -1079,7 +1090,11 @@ export interface CategoryUpdateItem {
   entries: number;
   visibility: VisibilityInt;
   viewChannel: string | null;
-  children: CategoryUpdateItem[];
+  /**
+   * 중첩 미러. 신규 자식은 append 객체(`id:-1, isNew:true`)를, 기존 자식은 update 객체를
+   * 그대로 박는다 (§3.6.1 — 하위 카테고리 생성 시 부모 update.children 에 자식 미러).
+   */
+  children: (CategoryAppendItem | CategoryUpdateItem)[];
   leaf: boolean;
   categoryInfo: { liststyle?: string; image?: string; description?: string };
   depth: number;
