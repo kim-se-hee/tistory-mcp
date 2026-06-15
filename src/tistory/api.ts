@@ -558,6 +558,130 @@ function guessMime(filename: string): string {
   }
 }
 
+/** 이미지 픽셀 dimension. docs/api.md §5.3 (에디터는 실픽셀을 자동 채움). */
+export interface ImageDimensions {
+  width: number;
+  height: number;
+}
+
+/**
+ * 이미지 바이트의 헤더만 파싱해 픽셀 width/height 추출. PNG/JPEG/GIF/WebP/BMP 지원.
+ * 못 알아내면 null (포맷 미지원·헤더 손상).
+ *
+ * ★ 새 의존성(sharp 등) 없이 magic bytes 만으로 해결 — package.json 은 이 모듈 소유 밖.
+ * dimension 은 보통 파일 선두 수십~수백 바이트에 박혀 있어 전체 디코드가 불필요하다.
+ */
+export function parseImageDimensions(buf: Buffer): ImageDimensions | null {
+  // PNG: \x89PNG\r\n\x1a\n + IHDR(13B) → offset 16 width / 20 height (BE)
+  if (
+    buf.length >= 24 &&
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47
+  ) {
+    return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+  }
+
+  // GIF: "GIF87a"/"GIF89a" → offset 6 width / 8 height (LE, 16bit)
+  if (
+    buf.length >= 10 &&
+    buf[0] === 0x47 &&
+    buf[1] === 0x49 &&
+    buf[2] === 0x46
+  ) {
+    return { width: buf.readUInt16LE(6), height: buf.readUInt16LE(8) };
+  }
+
+  // BMP: "BM" → offset 18 width / 22 height (LE, 32bit; height 음수면 top-down)
+  if (buf.length >= 26 && buf[0] === 0x42 && buf[1] === 0x4d) {
+    const w = buf.readInt32LE(18);
+    const h = buf.readInt32LE(22);
+    return { width: Math.abs(w), height: Math.abs(h) };
+  }
+
+  // WebP: "RIFF"...."WEBP" + chunk (VP8 / VP8L / VP8X) — 세 변형 헤더가 제각각
+  if (
+    buf.length >= 30 &&
+    buf[0] === 0x52 &&
+    buf[1] === 0x49 &&
+    buf[2] === 0x46 &&
+    buf[3] === 0x46 &&
+    buf[8] === 0x57 &&
+    buf[9] === 0x45 &&
+    buf[10] === 0x42 &&
+    buf[11] === 0x50
+  ) {
+    return parseWebpDimensions(buf);
+  }
+
+  // JPEG: SOI 0xFFD8 → SOF 마커까지 세그먼트 스킵
+  if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xd8) {
+    return parseJpegDimensions(buf);
+  }
+
+  return null;
+}
+
+function parseWebpDimensions(buf: Buffer): ImageDimensions | null {
+  const fmt = buf.toString("ascii", 12, 16);
+  if (fmt === "VP8 ") {
+    // lossy: frame tag(3B) 뒤 0x9d012a sync → width/height 14bit LE
+    if (buf.length < 30) return null;
+    const w = buf.readUInt16LE(26) & 0x3fff;
+    const h = buf.readUInt16LE(28) & 0x3fff;
+    return { width: w, height: h };
+  }
+  if (fmt === "VP8L") {
+    // lossless: 0x2f signature 뒤 28bit 에 (w-1)14bit | (h-1)14bit 패킹
+    if (buf.length < 25 || buf[20] !== 0x2f) return null;
+    const b0 = buf[21] ?? 0;
+    const b1 = buf[22] ?? 0;
+    const b2 = buf[23] ?? 0;
+    const b3 = buf[24] ?? 0;
+    const width = 1 + (((b1 & 0x3f) << 8) | b0);
+    const height = 1 + (((b3 & 0x0f) << 10) | (b2 << 2) | ((b1 & 0xc0) >> 6));
+    return { width, height };
+  }
+  if (fmt === "VP8X") {
+    // extended: offset 24 부터 width-1 / height-1 각 24bit LE
+    if (buf.length < 30) return null;
+    const width = 1 + (buf.readUIntLE(24, 3));
+    const height = 1 + (buf.readUIntLE(27, 3));
+    return { width, height };
+  }
+  return null;
+}
+
+function parseJpegDimensions(buf: Buffer): ImageDimensions | null {
+  let i = 2;
+  while (i + 9 < buf.length) {
+    if (buf[i] !== 0xff) {
+      i++;
+      continue;
+    }
+    const marker = buf[i + 1] ?? 0;
+    // SOF0..SOF15 (0xC0~0xCF) 중 DHT(C4)/DNL(C8)/DAC(CC) 제외 = 실제 frame 헤더
+    if (
+      marker >= 0xc0 &&
+      marker <= 0xcf &&
+      marker !== 0xc4 &&
+      marker !== 0xc8 &&
+      marker !== 0xcc
+    ) {
+      // SOF: marker(2) + len(2) + precision(1) + height(2) + width(2)
+      const height = buf.readUInt16BE(i + 5);
+      const width = buf.readUInt16BE(i + 7);
+      return { width, height };
+    }
+    // 그 외 세그먼트는 length 만큼 스킵 (length 는 marker 직후 2B BE, 자신 포함)
+    const segLen = buf.readUInt16BE(i + 2);
+    if (segLen < 2) return null;
+    i += 2 + segLen;
+  }
+  return null;
+}
+
 /** 본문 삽입용 이미지 정렬/크기 메타. docs/api.md §5.3. */
 export interface ImageSubstitutionMeta {
   originWidth: number;
